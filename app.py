@@ -43,6 +43,22 @@ class Audit(Base):
 
 Base.metadata.create_all(bind=engine)
 
+def elevate_admin():
+    """Auto-elevate the owner account to ADMINISTRADOR on every startup."""
+    admin_user = os.getenv("ADMIN_USERNAME", "")
+    if not admin_user:
+        return
+    db = SessionLocal()
+    try:
+        u = db.query(User).filter(User.username == admin_user).first()
+        if u and u.role != "ADMINISTRADOR":
+            u.role = "ADMINISTRADOR"
+            db.commit()
+    finally:
+        db.close()
+
+elevate_admin()
+
 def get_usage(username):
     try:
         db = SessionLocal()
@@ -298,7 +314,7 @@ def main():
                 st.markdown("<br>", unsafe_allow_html=True)
                 r_un = st.text_input("Crear Usuario", key="reg_u")
                 r_pw = st.text_input("Crear Contraseña", type="password", key="reg_p")
-                r_rol = st.selectbox("Rol", ["AUDITOR_LEGAL", "ADMINISTRADOR", "INGENIERO_IA"])
+                r_rol = st.selectbox("Rol", ["AUDITOR_LEGAL", "INGENIERO_IA"])
                 if st.button("Crear Cuenta (3 Auditorías)", use_container_width=True):
                     if r_un and r_pw:
                         if register_user(r_un, r_pw, r_rol):
