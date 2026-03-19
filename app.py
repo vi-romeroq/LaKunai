@@ -268,7 +268,7 @@ def main():
             st.markdown("""<div style='background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9)); padding:30px; border-radius:20px; border-top:4px solid #38bdf8; height:100%; box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
             <div style='font-size:2.5rem; margin-bottom:15px;'>🔍</div>
             <h4 style='color:#f8fafc; font-size:1.1rem; line-height:1.4; font-weight:800;'>DETECTA PELIGROS OCULTOS</h4>
-            <p style='color:#cbd5e1; font-size:0.95rem; line-height:1.6;'>Un humano no lo ve, Lakunai sí. Analiza al instante cómo configuras tu IA previniendo demandas.</p></div>""", unsafe_allow_html=True)
+            <p style='color:#cbd5e1; font-size:0.95rem; line-height:1.6;'>Identifica patrones de riesgo que escapan a revisiones manuales. Actúa como tu primera línea de defensa para auditar tu modelo de IA y minimizar la exposición legal corporativa.</p></div>""", unsafe_allow_html=True)
         with c2:
             st.markdown("""<div style='background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9)); padding:30px; border-radius:20px; border-top:4px solid #818cf8; height:100%; box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
             <div style='font-size:2.5rem; margin-bottom:15px;'>🛡️</div>
