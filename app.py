@@ -114,7 +114,7 @@ def generate_pdf_report(username: str, doc_names: str, risk_tier: str, report_te
     return bytes(pdf.output())
 
 # --- Cloud-Ready Database ORM (SQLAlchemy Setup) ---
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 load_dotenv()
@@ -144,6 +144,15 @@ class Audit(Base):
     doc_name = Column(String)
     risk_tier = Column(String)
     audit_date = Column(DateTime)
+
+class RagDocument(Base):
+    """Persistent RAG context stored in Supabase so it survives Streamlit Cloud restarts."""
+    __tablename__ = "rag_documents"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String, index=True)
+    doc_name = Column(String)
+    content = Column(Text)
+    created_at = Column(DateTime)
 
 Base.metadata.create_all(bind=engine)
 
@@ -200,6 +209,24 @@ def get_audits(username):
     finally:
         db.close()
 
+def save_rag_document(username, doc_name, content):
+    """Persist RAG context to DB -- survives cloud restarts unlike local disk."""
+    try:
+        db = SessionLocal()
+        db.add(RagDocument(username=username, doc_name=doc_name, content=content, created_at=datetime.datetime.now()))
+        db.commit()
+    finally:
+        db.close()
+
+def get_rag_documents(username):
+    """Retrieve the last 10 RAG documents for BM25 retrieval."""
+    try:
+        db = SessionLocal()
+        docs = db.query(RagDocument).filter(RagDocument.username == username).order_by(RagDocument.id.desc()).limit(10).all()
+        return [(d.doc_name, d.content) for d in docs]
+    finally:
+        db.close()
+
 def register_user(username, password, role="AUDITOR_LEGAL"):
     db = SessionLocal()
     try:
@@ -243,12 +270,20 @@ def get_analyzer():
 
 @st.cache_data
 def get_extracted_text(file_content_bytes, file_name):
-    class DummyFile:
-        def __init__(self, b, n): self.bytes, self.name = b, n
-        def read(self): return self.bytes
-        def getvalue(self): return self.bytes
-        def seek(self, *args): pass
-    return StandardAnalyzer().extract_text(DummyFile(file_content_bytes, file_name))
+    """Extract text directly -- avoids initializing the Groq LLM client inside a cached function."""
+    import io
+    name_lower = file_name.lower()
+    if name_lower.endswith(".pdf"):
+        import fitz
+        doc = fitz.open(stream=file_content_bytes, filetype="pdf")
+        return "\n".join(page.get_text() for page in doc)
+    elif name_lower.endswith(".docx"):
+        import docx as _docx
+        doc = _docx.Document(io.BytesIO(file_content_bytes))
+        return "\n".join(p.text for p in doc.paragraphs)
+    elif name_lower.endswith(".txt"):
+        return file_content_bytes.decode("utf-8", errors="replace")
+    return ""
 
 
 st.set_page_config(page_title="Normatix | AI Enterprise GRC", page_icon="🧿", layout="wide", initial_sidebar_state="auto")
@@ -460,7 +495,7 @@ def main():
             <li>✓ Soporte por email</li>
             </ul></div>""", unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("<a href='https://lakunai.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:block;padding:12px;background:linear-gradient(135deg,#0284c7,#2563eb);color:white;border-radius:12px;text-decoration:none;font-weight:800;text-align:center;'>💎 Suscribirse Ahora</a>", unsafe_allow_html=True)
+            st.markdown("<a href='https://normatix.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:block;padding:12px;background:linear-gradient(135deg,#0284c7,#2563eb);color:white;border-radius:12px;text-decoration:none;font-weight:800;text-align:center;'>💎 Suscribirse Ahora</a>", unsafe_allow_html=True)
         with pr3:
             st.markdown("""
             <div style='background:rgba(15,23,42,0.7);border:1px solid rgba(129,140,248,0.3);border-radius:20px;padding:30px;text-align:center;'>
@@ -584,11 +619,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                 st.markdown("</div>", unsafe_allow_html=True)
 
 
-            st.markdown("<br><div style='text-align:center;color:#94a3b8;font-size:0.85rem;'>Autenticación Corporativa SSO</div><hr style='border-color:rgba(255,255,255,0.1);margin-top:5px;margin-bottom:15px;'>", unsafe_allow_html=True)
-            if st.button("🔵 Continuar con Microsoft 365", use_container_width=True):
-                st.info("🔐 Función reservada. Requiere credenciales de Azure Entra ID.")
-            if st.button("🔴 Continuar con Google Workspace", use_container_width=True):
-                st.info("🔐 Función reservada. Requiere credenciales de Google Cloud Console.")
+            st.markdown("<br><div style='text-align:center;padding:10px;border:1px dashed rgba(56,189,248,0.2);border-radius:10px;'><span style='color:#475569;font-size:0.8rem;'>🔵 SSO Empresarial (Microsoft 365 / Google Workspace)</span><br><span style='color:#38bdf8;font-size:0.75rem;font-weight:700;letter-spacing:1px;'>PRÓXIMAMENTE</span></div>", unsafe_allow_html=True)
         st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 Normatix Soluciones Inteligentes &nbsp;|&nbsp; <a href='mailto:contacto@normatix.cl' style='color:#38bdf8;text-decoration:none;'>contacto@normatix.cl</a></div>", unsafe_allow_html=True)
         st.stop()
 
@@ -628,7 +659,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
         st.sidebar.progress(min(usage_count / MAX_FREE_USES, 1.0))
         if usage_count >= MAX_FREE_USES:
             st.sidebar.error("⚠️ **Cuota Terminada**")
-            st.sidebar.markdown("<a href='https://lakunai.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:inline-block;padding:8px 16px;background:#2563eb;color:white;border-radius:8px;text-decoration:none;font-weight:bold;width:100%;text-align:center;'>💎 MEJORAR A NORMATIX PRO ($10.000 CLP/m)</a>", unsafe_allow_html=True)
+            st.sidebar.markdown("<a href='https://normatix.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:inline-block;padding:8px 16px;background:#2563eb;color:white;border-radius:8px;text-decoration:none;font-weight:bold;width:100%;text-align:center;'>💎 MEJORAR A NORMATIX PRO ($10.000 CLP/m)</a>", unsafe_allow_html=True)
         else:
             st.sidebar.caption(f"Auditorías Usadas: {usage_count} / {MAX_FREE_USES}")
     elif plan == "GUEST":
@@ -652,12 +683,8 @@ El documento analizado corresponde a una política interna de uso de IA para eva
     jurisdiction = st.sidebar.selectbox(loc["jur"], ["Chile (Ley N° 19.628 / Proyecto Ley IA)", "EU AI Act (Europa)", "USA (NIST AI RMF)"])
 
     if st.sidebar.button("Cerrar Sesión"):
-        # Full session wipe — leaves no stale state between users
-        keys_to_clear = ['auth_username', 'auth_role', 'auth_plan', 'session_start',
-                         'last_audit', 'last_audit_docs', 'messages', 'demo_mode',
-                         'guest_uses', 'login_attempts', 'lockout_until']
-        for k in keys_to_clear:
-            st.session_state.pop(k, None)
+        # Complete session wipe -- future-proof, covers any new keys added later
+        st.session_state.clear()
         st.rerun()
 
     # Build tab list per role
@@ -809,16 +836,10 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                             save_audit(username, ", ".join(doc_names), risk_tier)
                             increment_usage(username)
 
-                        rag_dir = f"data_rag/{username}"
-                        os.makedirs(rag_dir, exist_ok=True)
-                        timestamp_str = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-                        for d_name in doc_names:
-                            # Path traversal protection: strip directory components + sanitize
-                            base_name = os.path.basename(d_name)
-                            safe_name = "".join([c for c in base_name if c.isalpha() or c.isdigit()]).rstrip() or "doc"
-                            safe_name = safe_name[:50]  # Max 50 chars
-                            with open(f"{rag_dir}/{timestamp_str}_{safe_name}.txt", "w", encoding="utf-8") as f_rag:
-                                f_rag.write(combined_text)
+                        # Persist RAG context to Supabase DB -- survives Streamlit Cloud restarts
+                        if username not in ("GUEST_SESSION", "DEMO_USER"):
+                            for d_name in doc_names:
+                                save_rag_document(username, d_name, combined_text)
 
                         st.markdown(loc["rep_t"])
                         try:
@@ -905,20 +926,15 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                     st.session_state.messages.append({"role": "user", "content": prompt})
                     with st.chat_message("user"): st.markdown(prompt)
                     with st.chat_message("assistant"):
-                        rag_dir = f"data_rag/{username}"
                         retrieved_context = ""
-                        if os.path.exists(rag_dir):
-                            import glob
-                            from rank_bm25 import BM25Okapi
-                            files = glob.glob(f"{rag_dir}/*.txt")
-                            if files:
-                                corpus = []
-                                for f in files:
-                                    with open(f, "r", encoding="utf-8") as fr: corpus.append(fr.read())
-                                tokenized_corpus = [doc.split(" ") for doc in corpus]
-                                bm25 = BM25Okapi(tokenized_corpus)
-                                top_doc = bm25.get_top_n(prompt.split(" "), corpus, n=1)[0]
-                                retrieved_context = f"--- RAG CONTEXT ---\n{top_doc[:3000]}\n\n"
+                        from rank_bm25 import BM25Okapi
+                        rag_docs = get_rag_documents(username)
+                        if rag_docs:
+                            corpus = [d[1] for d in rag_docs]
+                            tokenized_corpus = [doc.split(" ") for doc in corpus]
+                            bm25 = BM25Okapi(tokenized_corpus)
+                            top_doc = bm25.get_top_n(prompt.split(" "), corpus, n=1)[0]
+                            retrieved_context = f"--- RAG CONTEXT ---\n{top_doc[:3000]}\n\n"
                         full_context = retrieved_context + "--- LATEST AUDIT ---\n" + st.session_state.get('last_audit', '')
                         analyzer = get_analyzer()
                         try:
@@ -949,7 +965,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
         with tabs[tab_idx]:
             st.markdown(loc["t5_h"])
             st.write(loc["t5_d"])
-            model_endpoint = st.text_input(loc["t5_url"], "http://localhost:8000/v1/chat/completions")
+            model_endpoint = st.text_input(loc["t5_url"], "https://api.mi-empresa.cl/v1/chat/completions")
             if st.button(loc["t5_atk"], use_container_width=True):
                 # --- SSRF PROTECTION: block private IP ranges ---
                 ssrf_safe = True
@@ -976,29 +992,17 @@ El documento analizado corresponde a una política interna de uso de IA para eva
         with tabs[tab_idx]:
             st.markdown(loc["t6_h"])
             st.write(loc["t6_d"])
-            st.markdown("#### 🔑 Token de Integración")
-            st.code("NORMATIX-G-8X912-AF20X-L29", language="bash")
-            st.warning("⚠️ No insertes este token directamente. Usa GitHub Secrets.")
-            st.markdown("#### GitHub Actions YAML")
-            st.code("""name: "Normatix Compliance Check"
-on: [pull_request]
-
-jobs:
-  compliance_audit:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Run GRC Matrix Scanner
-      uses: Normatix-AI/action-scanner@v1
-      with:
-        api-key: ${{ secrets.NORMATIX_TOKEN }}
-        model-path: './arquitectura/modelo_v2.bin'
-        framework: 'EU_AI_ACT'""", language="yaml")
-            st.markdown("#### API cURL")
-            st.code("""curl -X POST https://api.normatix.io/v1/audit/live \\
-  -H "Authorization: Bearer $NORMATIX_TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d '{"model_endpoint": "https://mi-modelo.empresa.cl", "tests": ["toxicity", "gender_bias"]}'""", language="bash")
+            st.markdown("""
+            <div style='text-align:center;padding:60px 40px;border:1px dashed rgba(56,189,248,0.2);border-radius:20px;background:rgba(15,23,42,0.5);margin-top:20px;'>
+                <div style='font-size:3rem;margin-bottom:20px;'>🔗</div>
+                <h3 style='color:#f8fafc;font-weight:800;margin-bottom:10px;'>Integración CI/CD con GitHub Actions</h3>
+                <p style='color:#94a3b8;max-width:500px;margin:0 auto 20px;line-height:1.6;'>Normatix se integrará directamente en tus pipelines de despliegue para auditar modelos de IA automáticamente antes de cada <code style='color:#38bdf8;'>merge</code> a producción.</p>
+                <div style='display:inline-block;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);border-radius:30px;padding:8px 24px;margin-bottom:20px;'>
+                    <span style='color:#38bdf8;font-weight:700;font-size:0.85rem;letter-spacing:2px;'>EN DESARROLLO — ENTERPRISE PLAN</span>
+                </div>
+                <p style='color:#475569;font-size:0.85rem;'>¿Necesitas esta integración ahora? <a href='mailto:contacto@normatix.cl' style='color:#38bdf8;'>contacto@normatix.cl</a></p>
+            </div>
+            """, unsafe_allow_html=True)
         tab_idx += 1
 
     st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 Normatix Soluciones Inteligentes &nbsp;|&nbsp; <a href='mailto:contacto@normatix.cl' style='color:#38bdf8;text-decoration:none;'>contacto@normatix.cl</a></div>", unsafe_allow_html=True)

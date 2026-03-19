@@ -11,7 +11,10 @@ import docx
 
 class StandardAnalyzer:
     def __init__(self):
-        self.llm = ChatGroq(temperature=0.7, model_name="llama-3.1-8b-instant")
+        # Fast 8B model for classification tasks and red-teaming (speed priority)
+        self.llm = ChatGroq(temperature=0.1, model_name="llama-3.1-8b-instant")
+        # Large 70B model for main audit reports (quality priority for client-facing output)
+        self.llm_large = ChatGroq(temperature=0.1, model_name="llama-3.3-70b-versatile")
     
     def extract_text(self, file_obj):
         text = ""
@@ -56,9 +59,11 @@ class StandardAnalyzer:
         )
         splitter = RecursiveCharacterTextSplitter(chunk_size=6000, chunk_overlap=300)
         chunks = splitter.split_text(text)
-        chain = prompt | self.llm
+        # Use quality 70B model + combine up to 3 chunks for full-document coverage (not just page 1)
+        combined_for_llm = "\n\n[... SECCIÓN SIGUIENTE ...]\n\n".join(chunks[:3]) if chunks else ""
+        chain = prompt | self.llm_large
         try:
-            for chunk in chain.stream({"text": chunks[0] if chunks else "", "domain": domain, "jurisdiction": jurisdiction, "language": language, "live_ctx": live_ctx}):
+            for chunk in chain.stream({"text": combined_for_llm, "domain": domain, "jurisdiction": jurisdiction, "language": language, "live_ctx": live_ctx}):
                 if chunk.content: yield chunk.content
         except Exception as e:
             yield f"\n\n⚠️ **Error de Conexión AI:** Servidores saturados o límite superado (`{str(e)[:50]}`). Por favor, intenta de nuevo en unos segundos."
@@ -120,8 +125,8 @@ Here is the first page of the doc:
         phone_pattern = r'(\+?56)?\s?9\s?\d{4}\s?\d{4}'
         text = re.sub(phone_pattern, '[PHONE_REDACTED]', text)
         
-        # Redact Credit Cards (PCI Compliance)
-        cc_pattern = r'\b(?:\d[ -]*?){13,16}\b'
+        # Redact Credit Cards (PCI Compliance) — card-format-specific patterns avoid false positives on legal article numbers
+        cc_pattern = r'\b4[0-9]{12}(?:[0-9]{3})?\b|\b5[1-5][0-9]{14}\b|\b3[47][0-9]{13}\b|\b6(?:011|5[0-9]{2})[0-9]{12}\b|\b\d{4}[\s\-]\d{4}[\s\-]\d{4}[\s\-]\d{4}\b'
         text = re.sub(cc_pattern, '[CREDIT_CARD_REDACTED]', text)
         
         # Redact IPv4 Addresses
