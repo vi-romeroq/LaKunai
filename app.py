@@ -354,7 +354,7 @@ def main():
             st.sidebar.progress(usage_count / MAX_FREE_USES)
             if usage_count >= MAX_FREE_USES:
                 st.sidebar.error("⚠️ **Cuota Terminada**")
-                st.sidebar.markdown("<a href='https://lakunai.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:inline-block; padding:8px 16px; background:#2563eb; color:white; border-radius:8px; text-decoration:none; font-weight:bold; width:100%; text-align:center;'>🚀 MEJORAR A LAKUNAI PRO ($199/m)</a>", unsafe_allow_html=True)
+                st.sidebar.markdown("<a href='https://lakunai.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:inline-block; padding:8px 16px; background:#2563eb; color:white; border-radius:8px; text-decoration:none; font-weight:bold; width:100%; text-align:center;'>💎 MEJORAR A LAKUNAI PRO ($10.000 CLP/m)</a>", unsafe_allow_html=True)
             else:
                 st.sidebar.caption(f"Auditorías Usadas: {usage_count} / {MAX_FREE_USES}")
         elif plan == "GUEST":
@@ -409,7 +409,7 @@ def main():
                 st.markdown("""<div style='background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9)); padding:30px; border-radius:20px; border-top:4px solid #38bdf8; height:100%; box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
                 <div style='font-size:2.5rem; margin-bottom:15px;'>🔍</div>
                 <h4 style='color:#f8fafc; font-size:1.1rem; line-height:1.4; font-weight:800;'>DETECTA PELIGROS OCULTOS</h4>
-                <p style='color:#cbd5e1; font-size:0.95rem; line-height:1.6;'>Un humano no lo ve, Lakunai sí. Analiza al instante cómo configuras tu IA.<br><br><i>Ejemplo: Alerta sobre discriminación de género en filtros de RR.HH, previniendo demandas y escándalos.</i></p></div>""", unsafe_allow_html=True)
+                <p style='color:#cbd5e1; font-size:0.95rem; line-height:1.6;'>Auditoría algorítmica y documental especializada. Analiza al instante cómo configuras tu IA.<br><br><i>Ejemplo: Alerta sobre discriminación de género en filtros de RR.HH, mitigando el riesgo de demandas y daños reputacionales.</i></p></div>""", unsafe_allow_html=True)
             with c2:
                 st.markdown("""<div style='background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9)); padding:30px; border-radius:20px; border-top:4px solid #818cf8; height:100%; box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
                 <div style='font-size:2.5rem; margin-bottom:15px;'>🛡️</div>
