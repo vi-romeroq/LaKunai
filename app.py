@@ -889,6 +889,24 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                                 st.caption(f"PDF no disponible: {e}")
                         else:
                             st.info("💎 **Función PRO:** El reporte en PDF institucional (marca blanca) es exclusivo de suscripciones activas. Como usuario Free, tienes disponible la exportación en texto (.txt) arriba.")
+
+                        # --- GOD TIER: REMEDIATION ENGINE ---
+                        if risk_tier in ["HIGH RIESGO", "HIGH", "MEDIUM RIESGO", "MEDIUM", "ALTO RIESGO", "MEDIO RIESGO"]:
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            st.markdown("""<div style='background:rgba(129,140,248,0.1);border:1px solid rgba(129,140,248,0.3);border-radius:12px;padding:20px;'>
+                            <h4 style='color:#818cf8;margin-top:0;'>✨ Remediation Engine (Redacción Correctiva)</h4>
+                            <p style='color:#cbd5e1;font-size:0.9rem;'>Normatix puede reescribir automáticamente las cláusulas conflictivas detectadas en este reporte para hacerlas seguras bajo <b>{}</b>.</p>
+                            """.format(jurisdiction), unsafe_allow_html=True)
+                            
+                            if st.button("Generar Cláusulas Correctivas Seguras"):
+                                st.info("Generando redacción corporativa legalmente segura mediante LLM 70B...")
+                                try:
+                                    corrective_generator = analyzer.remediate_clauses_stream(combined_text, result_text, jurisdiction)
+                                    remediation_text = st.write_stream(corrective_generator)
+                                    st.download_button("📥 Descargar Cláusulas Corregidas", data=remediation_text, file_name=f"Normatix_Remediation_{datetime.datetime.now().strftime('%Y%m%d')}.txt")
+                                except Exception as e:
+                                    st.error(f"Error generando cláusulas: {str(e)}")
+                            st.markdown("</div>", unsafe_allow_html=True)
                         st.success(loc["audit_succ"])
         tab_idx += 1
 
