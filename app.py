@@ -213,6 +213,11 @@ def authenticate_user(username, password):
     finally:
         db.close()
 
+@st.cache_resource
+def get_analyzer():
+    """Cache the LLM client globally — avoids re-instantiating Groq on every interaction."""
+    return StandardAnalyzer()
+
 @st.cache_data
 def get_extracted_text(file_content_bytes, file_name):
     class DummyFile:
@@ -337,6 +342,16 @@ def main():
         st.session_state['auth_username'] = None
         st.session_state['auth_role'] = None
         st.session_state['auth_plan'] = None
+        st.session_state['session_start'] = datetime.datetime.now()
+
+    # Session timeout: auto-logout after 4 hours
+    if st.session_state.get('auth_username') and st.session_state.get('session_start'):
+        elapsed = (datetime.datetime.now() - st.session_state['session_start']).total_seconds()
+        if elapsed > 14400:  # 4 hours
+            for k in ['auth_username', 'auth_role', 'auth_plan', 'session_start', 'demo_mode']:
+                st.session_state[k] = None
+            st.warning("⏰ Sesión expirada por inactividad. Por favor inicia sesión nuevamente.")
+            st.rerun()
 
     # --- HERO SECTION (always visible) ---
     hero_html = """
@@ -484,13 +499,19 @@ def main():
                 r_pw = st.text_input("Crear Contraseña", type="password", key="reg_p")
                 r_rol = st.selectbox("Rol", ["AUDITOR_LEGAL", "INGENIERO_IA"])
                 if st.button("Crear Cuenta (3 Auditorías)", use_container_width=True):
-                    if r_un and r_pw:
+                    if not r_un or not r_pw:
+                        st.error("⚠️ Completa ambos campos.")
+                    elif len(r_un) < 4:
+                        st.error("⚠️ El usuario debe tener al menos 4 caracteres.")
+                    elif " " in r_un:
+                        st.error("⚠️ El usuario no puede contener espacios.")
+                    elif len(r_pw) < 8:
+                        st.error("⚠️ La contraseña debe tener al menos 8 caracteres.")
+                    else:
                         if register_user(r_un, r_pw, r_rol):
                             st.success("✅ Cuenta B2B Creada. Ya puedes iniciar sesión.")
                         else:
                             st.error("❌ Ese nombre de usuario ya está tomado.")
-                    else:
-                        st.error("Llena ambos campos.")
 
             with auth_tabs[2]:
                 st.markdown("<br>", unsafe_allow_html=True)
@@ -542,6 +563,10 @@ El documento analizado corresponde a una política interna de uso de IA para eva
     username = st.session_state['auth_username']
     role = st.session_state['auth_role']
     plan = st.session_state['auth_plan']
+
+    # Demo mode banner
+    if st.session_state.get('demo_mode'):
+        st.info("🎬 **Modo Demo Activo** — Estás viendo datos de ejemplo. [Crea una cuenta gratuita](#) para auditar tus propios documentos.")
 
     if os.path.exists("logo.png"):
         st.sidebar.image("logo.png", use_container_width=True)
@@ -704,7 +729,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
 
             if analyze_btn and uploaded_files:
                 with st.spinner(loc["spin"]):
-                    analyzer = StandardAnalyzer()
+                    analyzer = get_analyzer()
                     combined_text = ""
                     doc_names = [f.name for f in uploaded_files]
                     for f in uploaded_files:
@@ -737,8 +762,16 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                                 f_rag.write(combined_text)
 
                         st.markdown(loc["rep_t"])
-                        generator = analyzer.analyze_stream(combined_text, domain, jurisdiction=jurisdiction, language=target_lang_opt)
-                        result_text = st.write_stream(generator)
+                        try:
+                            generator = analyzer.analyze_stream(combined_text, domain, jurisdiction=jurisdiction, language=target_lang_opt)
+                            result_text = st.write_stream(generator)
+                        except Exception as llm_err:
+                            err_msg = str(llm_err)
+                            if "429" in err_msg or "rate" in err_msg.lower():
+                                st.error("⏳ El servidor de IA está ocupado. Espera 30 segundos e intenta nuevamente (límite de velocidad del proveedor LLM).")
+                            else:
+                                st.error(f"❌ Error en el análisis: {err_msg[:200]}")
+                            st.stop()
                         st.session_state['last_audit'] = result_text
                         st.session_state['last_audit_docs'] = ", ".join(doc_names)
                         st.download_button(loc["down_r"], data=result_text, file_name="Lakunai_Audit.txt")
@@ -825,7 +858,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                                 top_doc = bm25.get_top_n(prompt.split(" "), corpus, n=1)[0]
                                 retrieved_context = f"--- RAG CONTEXT ---\n{top_doc[:3000]}\n\n"
                         full_context = retrieved_context + "--- LATEST AUDIT ---\n" + st.session_state.get('last_audit', '')
-                        analyzer = StandardAnalyzer()
+                        analyzer = get_analyzer()
                         response = st.write_stream(analyzer.remediate_stream(full_context, prompt))
                     st.session_state.messages.append({"role": "assistant", "content": response})
         tab_idx += 1
