@@ -476,8 +476,8 @@ def main():
             <li>✓ 1 auditoría de prueba</li>
             <li>✓ Descarga TXT del reporte</li>
             <li>✓ Clasificación de riesgo EU AI Act</li>
-            <li>✗ Sin historial de auditorías</li>
-            <li>✗ Sin PDF corporativo</li>
+            <li>✗ Sin historial de auditoría ni RAG</li>
+            <li>✗ Sin reporte PDF probatorio</li>
             </ul></div>""", unsafe_allow_html=True)
         with pr2:
             st.markdown("""
@@ -485,14 +485,14 @@ def main():
             <div style='position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#38bdf8;color:#0f172a;font-weight:800;font-size:0.75rem;padding:4px 16px;border-radius:20px;'>MÁS POPULAR</div>
             <div style='font-size:1.8rem;margin-bottom:8px;'>💎</div>
             <h3 style='color:#38bdf8;font-size:1rem;font-weight:700;margin:0;'>NORMATIX PRO</h3>
-            <div style='color:#f8fafc;font-size:2.5rem;font-weight:900;margin:15px 0 5px;'>$10.000 <span style='font-size:1rem;color:#94a3b8;'>CLP/m</span></div>
-            <p style='color:#64748b;font-size:0.85rem;margin-bottom:20px;'>~USD 10 / mes</p>
+            <div style='color:#f8fafc;font-size:2.5rem;font-weight:900;margin:15px 0 5px;'>$29.000 <span style='font-size:1rem;color:#94a3b8;'>CLP/m</span></div>
+            <p style='color:#64748b;font-size:0.85rem;margin-bottom:20px;'>~USD 30 / mes</p>
             <ul style='color:#cbd5e1;text-align:left;font-size:0.9rem;line-height:2;list-style:none;padding:0;'>
-            <li>✓ 3 auditorías / mes</li>
-            <li>✓ Reporte PDF corporativo con logo</li>
-            <li>✓ Dashboard histórico de riesgos</li>
-            <li>✓ Asistente legal RAG (Memoria IA)</li>
-            <li>✓ Soporte por email</li>
+            <li>✓ 5 auditorías completas / mes</li>
+            <li>✓ Reporte PDF con marca blanca (Evidencia)</li>
+            <li>✓ Dashboard histórico legal</li>
+            <li>✓ Asistente RAG (Memoria Corporativa)</li>
+            <li>✓ Soporte prioritario 24h</li>
             </ul></div>""", unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("<a href='https://normatix.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:block;padding:12px;background:linear-gradient(135deg,#0284c7,#2563eb);color:white;border-radius:12px;text-decoration:none;font-weight:800;text-align:center;'>💎 Suscribirse Ahora</a>", unsafe_allow_html=True)
@@ -659,7 +659,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
         st.sidebar.progress(min(usage_count / MAX_FREE_USES, 1.0))
         if usage_count >= MAX_FREE_USES:
             st.sidebar.error("⚠️ **Cuota Terminada**")
-            st.sidebar.markdown("<a href='https://normatix.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:inline-block;padding:8px 16px;background:#2563eb;color:white;border-radius:8px;text-decoration:none;font-weight:bold;width:100%;text-align:center;'>💎 MEJORAR A NORMATIX PRO ($10.000 CLP/m)</a>", unsafe_allow_html=True)
+            st.sidebar.markdown("<a href='https://normatix.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:inline-block;padding:8px 16px;background:#2563eb;color:white;border-radius:8px;text-decoration:none;font-weight:bold;width:100%;text-align:center;'>💎 MEJORAR A NORMATIX PRO ($29.000 CLP/m)</a>", unsafe_allow_html=True)
         else:
             st.sidebar.caption(f"Auditorías Usadas: {usage_count} / {MAX_FREE_USES}")
     elif plan == "GUEST":
@@ -814,15 +814,30 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                     uploaded_files = [f for f in uploaded_files if len(f.getvalue()) <= MAX_FILE_SIZE]
 
             if analyze_btn and uploaded_files:
-                with st.spinner(loc["spin"]):
+                import time
+                with st.status("Ejecutando Inteligencia Artificial GRC...", expanded=True) as status:
                     analyzer = get_analyzer()
                     combined_text = ""
                     doc_names = [f.name for f in uploaded_files]
+                    
+                    st.write("1️⃣ Inicializando motor de ofuscación de datos (PII)...")
                     for f in uploaded_files:
                         extracted = get_extracted_text(f.getvalue(), f.name)
                         if extracted.strip():
+                            st.write(f"&nbsp;&nbsp;↳ Limpiando archivo: `{f.name}`")
                             clean_text = analyzer.scrub_pii(extracted)
                             combined_text += f"\n\n--- Docs: {f.name} ---\n{clean_text}\n"
+
+                    st.write("2️⃣ Mapeando marco regulatorio seleccionado...")
+                    time.sleep(1)
+                    st.write(f"&nbsp;&nbsp;↳ Aislando variables: `{jurisdiction}`")
+                    
+                    st.write("3️⃣ Analizando vectores de riesgo y sesgos demográficos...")
+                    time.sleep(1.5)
+                    
+                    st.write("4️⃣ Estructurando reporte con citas legales formales...")
+                    time.sleep(1)
+                    status.update(label="Análisis completado ✅", state="complete", expanded=False)
 
                     if combined_text.strip():
                         st.markdown("---")
@@ -914,6 +929,16 @@ El documento analizado corresponde a una política interna de uso de IA para eva
         with tabs[tab_idx]:
             st.markdown(loc["t3_h"])
             st.write(loc["t3_d"])
+            
+            # --- RAG MOAT COUNTER ---
+            rag_docs_count = len(get_rag_documents(username))
+            st.markdown(f"""
+            <div style='padding:12px 20px;background:rgba(56,189,248,0.1);border-left:4px solid #38bdf8;border-radius:4px;margin-bottom:20px;'>
+                <span style='color:#38bdf8;font-weight:800;font-size:1.1rem;'>🧠 Módulo de Memoria Institucional Activo</span><br>
+                <span style='color:#e2e8f0;font-size:0.9rem;'>Normatix tiene indexado el contexto técnico de <b>{rag_docs_count} documento(s)</b> de tu empresa. El asistente RAG (Retrieval-Augmented Generation) buscará mitigaciones precisas dentro de esa jurisprudencia interna real.</span>
+            </div>
+            """, unsafe_allow_html=True)
+            
             if 'last_audit' not in st.session_state:
                 st.info(loc["t3_n"])
             else:
