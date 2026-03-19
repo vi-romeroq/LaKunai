@@ -260,44 +260,75 @@ def main():
     st.markdown(hero_html, unsafe_allow_html=True)
     
     if not st.session_state['auth_username']:
-        auth_tabs = st.sidebar.tabs(["🔑 Ingresar", "📝 Registro", "👁️ Anónimo"])
+        st.markdown("""<style>[data-testid="collapsedControl"] { display: none; } section[data-testid="stSidebar"] { display: none !important; width: 0 !important; }</style>""", unsafe_allow_html=True)
         
-        with auth_tabs[0]:
-            st.markdown("### Acceso Corporativo")
-            u_in = st.text_input("Usuario", key="log_u")
-            p_in = st.text_input("Contraseña", type="password", key="log_p")
-            if st.button("Iniciar Sesión", use_container_width=True):
-                un, role, plan = authenticate_user(u_in, p_in)
-                if un:
-                    st.session_state['auth_username'] = un
-                    st.session_state['auth_role'] = role
-                    st.session_state['auth_plan'] = plan
-                    st.rerun()
-                else:
-                    st.error("Credenciales erróneas o cuenta inexistente.")
+        # --- 3 CARDS LANDING PAGE ---
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown("""<div style='background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9)); padding:30px; border-radius:20px; border-top:4px solid #38bdf8; height:100%; box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
+            <div style='font-size:2.5rem; margin-bottom:15px;'>🔍</div>
+            <h4 style='color:#f8fafc; font-size:1.1rem; line-height:1.4; font-weight:800;'>DETECTA PELIGROS OCULTOS</h4>
+            <p style='color:#cbd5e1; font-size:0.95rem; line-height:1.6;'>Un humano no lo ve, Lakunai sí. Analiza al instante cómo configuras tu IA previniendo demandas.</p></div>""", unsafe_allow_html=True)
+        with c2:
+            st.markdown("""<div style='background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9)); padding:30px; border-radius:20px; border-top:4px solid #818cf8; height:100%; box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
+            <div style='font-size:2.5rem; margin-bottom:15px;'>🛡️</div>
+            <h4 style='color:#f8fafc; font-size:1.1rem; line-height:1.4; font-weight:800;'>CENSURA DATOS</h4>
+            <p style='color:#cbd5e1; font-size:0.95rem; line-height:1.6;'>Antes de salir a internet, borramos RUTs, Tarjetas y correos. Tus clientes están a salvo de filtraciones.</p></div>""", unsafe_allow_html=True)
+        with c3:
+            st.markdown("""<div style='background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9)); padding:30px; border-radius:20px; border-top:4px solid #2dd4bf; height:100%; box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
+            <div style='font-size:2.5rem; margin-bottom:15px;'>⚖️</div>
+            <h4 style='color:#f8fafc; font-size:1.1rem; line-height:1.4; font-weight:800;'>TE GUÍA EN LA SOLUCIÓN</h4>
+            <p style='color:#cbd5e1; font-size:0.95rem; line-height:1.6;'>Te entregamos propuestas de redacción dinámicas para apoyar a tus equipos legales a mitigar riesgos.</p></div>""", unsafe_allow_html=True)
         
-        with auth_tabs[1]:
-            st.markdown("### Cuenta Nueva")
-            r_un = st.text_input("Usuario", key="reg_u")
-            r_pw = st.text_input("Contraseña", type="password", key="reg_p")
-            r_rol = st.selectbox("Rol", ["AUDITOR_LEGAL", "ADMINISTRADOR", "INGENIERO_IA"])
-            if st.button("Crear Cuenta Gratuita (3 Auditorías)", use_container_width=True):
-                if r_un and r_pw:
-                    if register_user(r_un, r_pw, r_rol):
-                        st.success("✅ Cuenta B2B Creada. Ya puedes iniciar sesión.")
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        
+        # --- CENTRAL AUTH BOX ---
+        col_space1, col_auth, col_space3 = st.columns([1, 1.2, 1])
+        with col_auth:
+            st.markdown("""<div style='text-align:center; padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.6); backdrop-filter: blur(10px);'>
+            <h3 style='color:#f8fafc; font-family:"Plus Jakarta Sans", sans-serif; margin-bottom:20px;'>Acceso a la Plataforma</h3>""", unsafe_allow_html=True)
+            auth_tabs = st.tabs(["🔑 Ingresar", "📝 Registro", "👁️ Anónimo"])
+            
+            with auth_tabs[0]:
+                st.markdown("<br>", unsafe_allow_html=True)
+                u_in = st.text_input("Usuario Corporativo", key="log_u")
+                p_in = st.text_input("Contraseña", type="password", key="log_p")
+                if st.button("Iniciar Sesión", use_container_width=True):
+                    un, role, plan = authenticate_user(u_in, p_in)
+                    if un:
+                        st.session_state['auth_username'] = un
+                        st.session_state['auth_role'] = role
+                        st.session_state['auth_plan'] = plan
+                        st.rerun()
                     else:
-                        st.error("❌ Ese nombre de usuario ya está tomado.")
-                else:
-                    st.error("Llena ambos campos.")
-        
-        with auth_tabs[2]:
-            st.markdown("### Modo Exploración")
-            st.caption("Prueba la IA 1 vez sin dejar datos.")
-            if st.button("Auditar Gratis (1 Crédito)", use_container_width=True):
-                st.session_state['auth_username'] = "GUEST_SESSION"
-                st.session_state['auth_role'] = "INVITADO"
-                st.session_state['auth_plan'] = "GUEST"
-                st.rerun()
+                        st.error("Credenciales erróneas o cuenta inexistente.")
+            
+            with auth_tabs[1]:
+                st.markdown("<br>", unsafe_allow_html=True)
+                r_un = st.text_input("Crear Usuario", key="reg_u")
+                r_pw = st.text_input("Crear Contraseña", type="password", key="reg_p")
+                r_rol = st.selectbox("Rol", ["AUDITOR_LEGAL", "ADMINISTRADOR", "INGENIERO_IA"])
+                if st.button("Crear Cuenta (3 Auditorías)", use_container_width=True):
+                    if r_un and r_pw:
+                        if register_user(r_un, r_pw, r_rol):
+                            st.success("✅ Cuenta B2B Creada.")
+                        else:
+                            st.error("❌ Ese nombre de usuario ya está tomado.")
+                    else:
+                        st.error("Llena ambos campos.")
+            
+            with auth_tabs[2]:
+                st.markdown("<br><div style='text-align:center;'>", unsafe_allow_html=True)
+                st.caption("Prueba la IA 1 vez completamente gratis sin dejar datos.")
+                if st.button("Auditar Gratis (1 Crédito)", use_container_width=True):
+                    st.session_state['auth_username'] = "GUEST_SESSION"
+                    st.session_state['auth_role'] = "INVITADO"
+                    st.session_state['auth_plan'] = "GUEST"
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+                
+        st.markdown("<br><br><br><br><br><div style='text-align: center; color: #475569; font-size: 0.85rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
         st.stop()
     else:
         username = st.session_state['auth_username']
