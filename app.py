@@ -8,6 +8,85 @@ import plotly.express as px
 import plotly.graph_objects as go
 from analyzer import StandardAnalyzer
 import hashlib
+from fpdf import FPDF
+import io
+
+def generate_pdf_report(username: str, doc_names: str, risk_tier: str, report_text: str) -> bytes:
+    """Generate a professional branded PDF audit report."""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_margins(20, 20, 20)
+
+    # Header bar
+    pdf.set_fill_color(5, 11, 20)
+    pdf.rect(0, 0, 210, 35, 'F')
+    pdf.set_font('Helvetica', 'B', 22)
+    pdf.set_text_color(56, 189, 248)
+    pdf.set_xy(20, 8)
+    pdf.cell(0, 10, 'LAKUNAI', ln=False)
+    pdf.set_font('Helvetica', '', 10)
+    pdf.set_text_color(148, 163, 184)
+    pdf.set_xy(20, 21)
+    pdf.cell(0, 6, 'AI Enterprise GRC Platform  |  Reporte Oficial de Auditoría Documental')
+
+    # Metadata block
+    pdf.set_xy(20, 42)
+    pdf.set_font('Helvetica', 'B', 11)
+    pdf.set_text_color(30, 30, 30)
+    pdf.cell(0, 7, f'Cliente/Usuario: {username}', ln=True)
+    pdf.set_x(20)
+    pdf.set_font('Helvetica', '', 10)
+    pdf.set_text_color(70, 70, 70)
+    pdf.cell(0, 6, f'Documentos Analizados: {doc_names}', ln=True)
+    pdf.set_x(20)
+    pdf.cell(0, 6, f'Fecha de Auditoría: {datetime.datetime.now().strftime("%d/%m/%Y %H:%M")} UTC', ln=True)
+
+    # Risk badge
+    pdf.ln(4)
+    risk_colors = {
+        'UNACCEPTABLE': (239, 68, 68), 'HIGH': (249, 115, 22),
+        'LIMITED': (234, 179, 8), 'MINIMAL': (34, 197, 94)
+    }
+    r, g, b = risk_colors.get(risk_tier.upper(), (100, 100, 100))
+    pdf.set_fill_color(r, g, b)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_x(20)
+    pdf.cell(80, 10, f'  CLASIFICACIÓN DE RIESGO: {risk_tier}  ', fill=True, ln=True, align='C')
+
+    # Divider
+    pdf.ln(4)
+    pdf.set_draw_color(56, 189, 248)
+    pdf.set_line_width(0.5)
+    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+    pdf.ln(5)
+
+    # Report body
+    pdf.set_font('Helvetica', '', 10)
+    pdf.set_text_color(30, 30, 30)
+    for line in report_text.split('\n'):
+        clean = line.strip()
+        if not clean:
+            pdf.ln(3)
+            continue
+        if clean.startswith('###') or clean.startswith('##'):
+            pdf.set_font('Helvetica', 'B', 11)
+            pdf.set_text_color(5, 11, 20)
+            pdf.set_x(20)
+            pdf.multi_cell(170, 7, clean.lstrip('#').strip())
+            pdf.set_font('Helvetica', '', 10)
+            pdf.set_text_color(30, 30, 30)
+        else:
+            pdf.set_x(20)
+            pdf.multi_cell(170, 6, clean)
+
+    # Footer
+    pdf.set_y(-20)
+    pdf.set_font('Helvetica', 'I', 8)
+    pdf.set_text_color(148, 163, 184)
+    pdf.cell(0, 5, '© 2026 LaKunAI Soluciones Inteligentes | Este reporte es de carácter orientativo y no constituye asesoría legal vinculante.', align='C')
+
+    return bytes(pdf.output())
 
 # --- Cloud-Ready Database ORM (SQLAlchemy Setup) ---
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
@@ -288,7 +367,63 @@ def main():
 
         st.markdown("<br><br>", unsafe_allow_html=True)
 
-        # Centered auth box
+        # --- PRICING PAGE ---
+        st.markdown("""
+        <div style='text-align:center; margin-bottom:10px;'>
+            <h2 style='color:#f8fafc;font-family:"Plus Jakarta Sans",sans-serif;font-weight:800;'>Planes Simples y Directos</h2>
+            <p style='color:#94a3b8;'>Empieza gratis. Escala cuando lo necesites.</p>
+        </div>""", unsafe_allow_html=True)
+
+        pr1, pr2, pr3 = st.columns(3)
+        with pr1:
+            st.markdown("""
+            <div style='background:rgba(15,23,42,0.7);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:30px;text-align:center;'>
+            <div style='font-size:1.8rem;margin-bottom:8px;'>🔍</div>
+            <h3 style='color:#94a3b8;font-size:1rem;font-weight:700;margin:0;'>EXPLORACIÓN</h3>
+            <div style='color:#f8fafc;font-size:2.5rem;font-weight:900;margin:15px 0 5px;'>Gratis</div>
+            <p style='color:#64748b;font-size:0.85rem;margin-bottom:20px;'>Sin tarjeta de crédito</p>
+            <ul style='color:#cbd5e1;text-align:left;font-size:0.9rem;line-height:2;list-style:none;padding:0;'>
+            <li>✓ 1 auditoría de prueba</li>
+            <li>✓ Descarga TXT del reporte</li>
+            <li>✓ Clasificación de riesgo EU AI Act</li>
+            <li>✗ Sin historial de auditorías</li>
+            <li>✗ Sin PDF corporativo</li>
+            </ul></div>""", unsafe_allow_html=True)
+        with pr2:
+            st.markdown("""
+            <div style='background:linear-gradient(180deg,rgba(2,132,199,0.15),rgba(37,99,235,0.1));border:2px solid #38bdf8;border-radius:20px;padding:30px;text-align:center;position:relative;'>
+            <div style='position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#38bdf8;color:#0f172a;font-weight:800;font-size:0.75rem;padding:4px 16px;border-radius:20px;'>MÁS POPULAR</div>
+            <div style='font-size:1.8rem;margin-bottom:8px;'>💎</div>
+            <h3 style='color:#38bdf8;font-size:1rem;font-weight:700;margin:0;'>LAKUNAI PRO</h3>
+            <div style='color:#f8fafc;font-size:2.5rem;font-weight:900;margin:15px 0 5px;'>$10.000 <span style='font-size:1rem;color:#94a3b8;'>CLP/m</span></div>
+            <p style='color:#64748b;font-size:0.85rem;margin-bottom:20px;'>~USD 10 / mes</p>
+            <ul style='color:#cbd5e1;text-align:left;font-size:0.9rem;line-height:2;list-style:none;padding:0;'>
+            <li>✓ 3 auditorías / mes</li>
+            <li>✓ Reporte PDF corporativo con logo</li>
+            <li>✓ Dashboard histórico de riesgos</li>
+            <li>✓ Asistente legal RAG (Memoria IA)</li>
+            <li>✓ Soporte por email</li>
+            </ul></div>""", unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<a href='https://lakunai.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:block;padding:12px;background:linear-gradient(135deg,#0284c7,#2563eb);color:white;border-radius:12px;text-decoration:none;font-weight:800;text-align:center;'>💎 Suscribirse Ahora</a>", unsafe_allow_html=True)
+        with pr3:
+            st.markdown("""
+            <div style='background:rgba(15,23,42,0.7);border:1px solid rgba(129,140,248,0.3);border-radius:20px;padding:30px;text-align:center;'>
+            <div style='font-size:1.8rem;margin-bottom:8px;'>🏢</div>
+            <h3 style='color:#818cf8;font-size:1rem;font-weight:700;margin:0;'>ENTERPRISE</h3>
+            <div style='color:#f8fafc;font-size:2.5rem;font-weight:900;margin:15px 0 5px;'>A Medida</div>
+            <p style='color:#64748b;font-size:0.85rem;margin-bottom:20px;'>Contrato anual</p>
+            <ul style='color:#cbd5e1;text-align:left;font-size:0.9rem;line-height:2;list-style:none;padding:0;'>
+            <li>✓ Auditorías ilimitadas</li>
+            <li>✓ Multi-usuario (RBAC)</li>
+            <li>✓ Integración CI/CD (API)</li>
+            <li>✓ Model Cards ISO + Red-Teaming</li>
+            <li>✓ SLA y soporte dedicado</li>
+            </ul></div>""", unsafe_allow_html=True)
+
+        st.markdown("<br><br>", unsafe_allow_html=True)
+
+        # --- AUTH + DEMO ---
         _, col_auth, _ = st.columns([1, 1.2, 1])
         with col_auth:
             st.markdown("""<div style='text-align:center;padding:20px;border-radius:15px;border:1px solid rgba(255,255,255,0.1);background:rgba(15,23,42,0.6);backdrop-filter:blur(10px);'>
@@ -332,6 +467,38 @@ def main():
                     st.session_state['auth_role'] = "INVITADO"
                     st.session_state['auth_plan'] = "GUEST"
                     st.rerun()
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
+                if st.button("▶️ Ver Demo Interactiva", use_container_width=True):
+                    st.session_state['auth_username'] = "DEMO_USER"
+                    st.session_state['auth_role'] = "INVITADO"
+                    st.session_state['auth_plan'] = "GUEST"
+                    demo_report = """## 📊 Reporte Estratégico Oficial — DEMO
+
+### 🔴 Resumen Ejecutivo
+El documento analizado corresponde a una política interna de uso de IA para evaluación de crédito en entidades financieras. Se identificaron riesgos **ALTO** bajo el marco del EU AI Act y la legislación chilena vigente (Ley 19.628).
+
+### ⚠️ Hallazgos Críticos Detectados
+1. **Ausencia de cláusula de transparencia algorítmica** — Los clientes no son informados de que una IA toma decisiones sobre su crédito. Esto infringe el Artículo 13 del EU AI Act y el principio de información de la Ley 19.628.
+2. **Sin mecanismo de impugnación humana** — El sistema no contempla un canal para que el afectado solicite revisión por un humano. Obligatorio en sistemas de Alto Riesgo.
+3. **Datos de entrenamiento no documentados** — No existe registro de las fuentes de datos usadas para entrenar el modelo, imposibilitando una auditoría de sesgo.
+
+### ✅ Áreas de Cumplimiento Verificado
+- Política de retención de datos: 5 años (conforme)
+- Cifrado en tránsito: TLS 1.3 (conforme)
+- Segmentación de roles de acceso: Implementada
+
+### 📋 Recomendaciones de Mitigación Prioritaria
+1. Redactar e incorporar una **cláusula de decisión automatizada** en los contratos de adhesión de clientes.
+2. Implementar un **canal de impugnación** documentado con SLA máximo de 5 días hábiles.
+3. Generar un **Model Card** según estándares ISO/IEC 42001 para el modelo de scoring.
+
+*Este reporte fue generado por Lakunai AI GRC Platform como demostración del análisis automatizado.*"""
+                    st.session_state['last_audit'] = demo_report
+                    st.session_state['last_audit_docs'] = "Política_IA_Credito_Demo.pdf"
+                    st.session_state['demo_mode'] = True
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
         st.stop()
@@ -531,6 +698,22 @@ def main():
                         st.session_state['last_audit'] = result_text
                         st.session_state['last_audit_docs'] = ", ".join(doc_names)
                         st.download_button(loc["down_r"], data=result_text, file_name="Lakunai_Audit.txt")
+                        # --- BRANDED PDF DOWNLOAD ---
+                        try:
+                            pdf_bytes = generate_pdf_report(
+                                username=username,
+                                doc_names=", ".join(doc_names),
+                                risk_tier=risk_tier,
+                                report_text=result_text
+                            )
+                            st.download_button(
+                                "📄 Descargar Reporte Oficial (PDF Corporativo)",
+                                data=pdf_bytes,
+                                file_name=f"Lakunai_Audit_{datetime.datetime.now().strftime('%Y%m%d')}.pdf",
+                                mime="application/pdf"
+                            )
+                        except Exception as e:
+                            st.caption(f"PDF no disponible: {e}")
                         st.success(loc["audit_succ"])
         tab_idx += 1
 
