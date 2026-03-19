@@ -4,6 +4,7 @@ import requests
 import json
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
+from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import fitz  # PyMuPDF
 import docx
@@ -28,27 +29,36 @@ class StandardAnalyzer:
     def analyze_stream(self, text, domain, jurisdiction="EU AI Act", language="Spanish"):
         if not text.strip(): yield "El documento está vacío."; return
         
+        # Dynamic Config & Agentic Search
+        import json
+        sys_prompt = "You are an elite GRC Auditor representing Lakunai..."
+        enable_search = False
+        try:
+            with open("lakunai_config.json", "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                sys_prompt = cfg.get("system_prompt", sys_prompt)
+                enable_search = cfg.get("enable_web_search", False)
+        except Exception:
+            pass
+            
+        live_ctx = ""
+        if enable_search:
+            try:
+                search = DuckDuckGoSearchRun()
+                q = f"last fines and regulations artificial intelligence {jurisdiction} 2026"
+                live_ctx = "--- LATEST LIVE WEB JURISPRUDENCE (MUST OBEY) ---\n" + search.run(q)[:1500] + "\n"
+            except Exception:
+                live_ctx = ""
+
         prompt = PromptTemplate(
-            input_variables=["text", "domain", "jurisdiction", "language"],
-            template="""You are an elite GRC Auditor representing Lakunai, "The AI that finds what the law can't see". 
-You specialize in {jurisdiction}. The user uploaded a document related to the industry: {domain}.
-
-CRITICAL DIRECTIVE: Evaluate the uploaded document against {jurisdiction} guidelines, forcefully hunting for the top 3 corporate fears:
-1) Data Leakage Risks (PII/Confidential Data exposure to Public AI Models).
-2) Public Relations Scandals (Reputational damage due to algorithmic demographic bias, toxicity, or unfairness).
-3) Multi-million dollar fines and strict legal non-compliance.
-
-Write a highly structured, strategic Markdown report (in {language}). If there are issues, list exactly what clauses need fixing to "close the gaps before they cost millions".
-
-DOCUMENT TO ANALYZE:
-{text}
-"""
+            input_variables=["text", "domain", "jurisdiction", "language", "live_ctx"],
+            template=sys_prompt + "\n\n{live_ctx}\nDOCUMENT TO ANALYZE:\n{text}\n"
         )
         splitter = RecursiveCharacterTextSplitter(chunk_size=6000, chunk_overlap=300)
         chunks = splitter.split_text(text)
         chain = prompt | self.llm
         try:
-            for chunk in chain.stream({"text": chunks[0] if chunks else "", "domain": domain, "jurisdiction": jurisdiction, "language": language}):
+            for chunk in chain.stream({"text": chunks[0] if chunks else "", "domain": domain, "jurisdiction": jurisdiction, "language": language, "live_ctx": live_ctx}):
                 if chunk.content: yield chunk.content
         except Exception as e:
             yield f"\n\n⚠️ **Error de Conexión AI:** Servidores saturados o límite superado (`{str(e)[:50]}`). Por favor, intenta de nuevo en unos segundos."

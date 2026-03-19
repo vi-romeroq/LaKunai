@@ -11,6 +11,27 @@ import hashlib
 import bcrypt
 from fpdf import FPDF
 import re
+import smtplib
+from email.mime.text import MIMEText
+
+def send_welcome_email(user_email):
+    """Sends a professional welcome email if SMTP is configured."""
+    sender = os.getenv("SMTP_USER", "")
+    pwd = os.getenv("SMTP_PASS", "")
+    if not sender or not pwd:
+        return False
+    msg = MIMEText(f"Bienvenido a Lakunai GRC Platform.\n\nTu cuenta administrativa corporativa '{user_email}' ha sido habilitada exitosamente.\n\nIngresa a nuestra suite web para auditar el cumplimiento normativo de IA de tu compañía.\n\nEl equipo de Lakunai.")
+    msg['Subject'] = 'Bienvenido a Lakunai | Secure Access'
+    msg['From'] = f"Lakunai Security <{sender}>"
+    msg['To'] = user_email
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
+            s.login(sender, pwd)
+            s.send_message(msg)
+        return True
+    except Exception:
+        return False
+
 
 def generate_pdf_report(username: str, doc_names: str, risk_tier: str, report_text: str) -> bytes:
     """Generate a professional branded PDF audit report."""
@@ -510,7 +531,11 @@ def main():
                         st.error("⚠️ La contraseña debe tener al menos 8 caracteres.")
                     else:
                         if register_user(r_un, r_pw, r_rol):
-                            st.success("✅ Cuenta B2B Creada. Ya puedes iniciar sesión.")
+                            email_sent = send_welcome_email(r_un)
+                            if email_sent:
+                                st.success("✅ Cuenta B2B Creada y Correo Oficial enviado.")
+                            else:
+                                st.success("✅ Cuenta B2B Creada (Email Simulado, falta SMTP). Ya puedes iniciar sesión.")
                         else:
                             st.error("❌ Ese nombre de usuario ya está tomado.")
 
@@ -709,6 +734,27 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                         st.plotly_chart(fig2, use_container_width=True)
                 else:
                     st.info("Aún no hay usuarios registrados.")
+                    
+                st.markdown("---")
+                st.markdown("#### 🎛️ Motor de Reglas Dinámicas (AI Prompts)")
+                st.caption("Ajusta el cerebro del auditor corporativo en vivo para toda la plataforma y activa el modo de búsqueda en internet.")
+                
+                try:
+                    import json
+                    with open("lakunai_config.json", "r", encoding="utf-8") as fcf:
+                        current_cfg = json.load(fcf)
+                except:
+                    current_cfg = {"system_prompt": "", "enable_web_search": False}
+                    
+                new_prompt = st.text_area("System Prompt Base (Institucional)", value=current_cfg.get("system_prompt", ""), height=200)
+                agentic_search = st.toggle("🌐 Activar RAG Agéntico (DuckDuckGo Web Search en Vivo) — Requiere más tiempo de respuesta", value=current_cfg.get("enable_web_search", False))
+                
+                if st.button("Guardar Configuración en Caliente (Hot-Reload)"):
+                    current_cfg["system_prompt"] = new_prompt
+                    current_cfg["enable_web_search"] = agentic_search
+                    with open("lakunai_config.json", "w", encoding="utf-8") as fcf:
+                        json.dump(current_cfg, fcf, indent=4)
+                    st.success("✅ Motor LLM actualizado para todos los inquilinos (Tenants) al instante.")
             finally:
                 db.close()
         tab_idx += 1
@@ -780,21 +826,24 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                         st.session_state['last_audit_docs'] = ", ".join(doc_names)
                         st.download_button(loc["down_r"], data=result_text, file_name="Lakunai_Audit.txt")
                         # --- BRANDED PDF DOWNLOAD ---
-                        try:
-                            pdf_bytes = generate_pdf_report(
-                                username=username,
-                                doc_names=", ".join(doc_names),
-                                risk_tier=risk_tier,
-                                report_text=result_text
-                            )
-                            st.download_button(
-                                "📄 Descargar Reporte Oficial (PDF Corporativo)",
-                                data=pdf_bytes,
-                                file_name=f"Lakunai_Audit_{datetime.datetime.now().strftime('%Y%m%d')}.pdf",
-                                mime="application/pdf"
-                            )
-                        except Exception as e:
-                            st.caption(f"PDF no disponible: {e}")
+                        if plan == "PRO" or role == "ADMINISTRADOR":
+                            try:
+                                pdf_bytes = generate_pdf_report(
+                                    username=username,
+                                    doc_names=", ".join(doc_names),
+                                    risk_tier=risk_tier,
+                                    report_text=result_text
+                                )
+                                st.download_button(
+                                    "📄 Descargar Reporte Oficial (PDF Corporativo)",
+                                    data=pdf_bytes,
+                                    file_name=f"Lakunai_Audit_{datetime.datetime.now().strftime('%Y%m%d')}.pdf",
+                                    mime="application/pdf"
+                                )
+                            except Exception as e:
+                                st.caption(f"PDF no disponible: {e}")
+                        else:
+                            st.info("💎 **Función PRO:** El reporte en PDF institucional (marca blanca) es exclusivo de suscripciones activas. Como usuario Free, tienes disponible la exportación en texto (.txt) arriba.")
                         st.success(loc["audit_succ"])
         tab_idx += 1
 
