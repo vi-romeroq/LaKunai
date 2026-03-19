@@ -257,7 +257,7 @@ def main():
         <p class="hero-title">{loc["hero_sub"]}</p>
     </div>
     """
-    components.html(hero_html, height=280, scrolling=False)
+    st.markdown(hero_html, unsafe_allow_html=True)
     
     if not st.session_state['auth_username']:
         auth_tabs = st.sidebar.tabs(["🔑 Ingresar", "📝 Registro", "👁️ Anónimo"])
