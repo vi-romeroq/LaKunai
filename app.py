@@ -197,7 +197,7 @@ T = {
         "t5_h": "### Laboratorio de Hacker Ético Adversarial 🎯", "t5_d": "Ingresa un Endpoint real. LAKUNAI ejecutará peticiones HTTP POST reales inyectando prompts tóxicos.",
         "t5_url": "URL / Endpoint Real del Modelo de IA", "t5_atk": "⚔️ Lanzar Ataque GRC (Red-Teaming)",
         
-        "t6_h": "### Hub de Integración Continua (CI/CD) 🔗", "t7": "📖 Sobre Lakunai", "t6_d": "Sincroniza Lakunai directamente con tus flujos de despliegue.",
+        "t6_h": "### Hub de Integración Continua (CI/CD) 🔗", "t7": "📖 Sobre Lakunai", "t7": "📖 Sobre Lakunai", "t6_d": "Sincroniza Lakunai directamente con tus flujos de despliegue.",
     },
     "English": {
         "hero_sub": "The AI that finds what<br><span>the law can't see.</span>",
@@ -361,6 +361,33 @@ def main():
     tabs = st.tabs(allowed_tab_names)
     username = st.session_state['auth_username']
     tab_idx = 0
+
+    # 0. SOBRE LAKUNAI (Landing)
+    if loc.get("t7", "📖 Sobre Lakunai") in allowed_tab_names:
+        with tabs[tab_idx]:
+            st.markdown("""
+            <div style="text-align:center; padding:10px 0 40px 0;">
+                <h1 style="color:#f8fafc; font-size:2.8rem; font-weight:800; line-height:1.2; margin-bottom:15px; font-family:'Plus Jakarta Sans', sans-serif;">¿ESTÁ TU EMPRESA REALMENTE PREPARADA<br><span style="color:#38bdf8;">PARA ADOPTAR LA INTELIGENCIA ARTIFICIAL?</span></h1>
+                <h3 style="color:#94a3b8; font-weight:400; font-size:1.3rem;">Lakunai audita tu infraestructura proactivamente para identificar y mitigar riesgos antes de un despliegue de IA.</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.markdown("""<div style='background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9)); padding:30px; border-radius:20px; border-top:4px solid #38bdf8; height:100%; box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
+                <div style='font-size:2.5rem; margin-bottom:15px;'>🔍</div>
+                <h4 style='color:#f8fafc; font-size:1.1rem; line-height:1.4; font-weight:800;'>DETECTA PELIGROS OCULTOS</h4>
+                <p style='color:#cbd5e1; font-size:0.95rem; line-height:1.6;'>Un humano no lo ve, Lakunai sí. Analiza al instante cómo configuras tu IA.<br><br><i>Ejemplo: Alerta sobre discriminación de género en filtros de RR.HH, previniendo demandas y escándalos.</i></p></div>""", unsafe_allow_html=True)
+            with c2:
+                st.markdown("""<div style='background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9)); padding:30px; border-radius:20px; border-top:4px solid #818cf8; height:100%; box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
+                <div style='font-size:2.5rem; margin-bottom:15px;'>🛡️</div>
+                <h4 style='color:#f8fafc; font-size:1.1rem; line-height:1.4; font-weight:800;'>CENSURA DATOS AUTOMÁTICAMENTE</h4>
+                <p style='color:#cbd5e1; font-size:0.95rem; line-height:1.6;'>Antes de salir a internet, borramos RUTs, Tarjetas de Crédito y correos electrónicos. Tus clientes y tu empresa están a salvo del robo de identidad y filtraciones.</p></div>""", unsafe_allow_html=True)
+            with c3:
+                st.markdown("""<div style='background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9)); padding:30px; border-radius:20px; border-top:4px solid #2dd4bf; height:100%; box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
+                <div style='font-size:2.5rem; margin-bottom:15px;'>⚖️</div>
+                <h4 style='color:#f8fafc; font-size:1.1rem; line-height:1.4; font-weight:800;'>TE GUÍA EN LA SOLUCIÓN</h4>
+                <p style='color:#cbd5e1; font-size:0.95rem; line-height:1.6;'>Te entregamos propuestas de redacción dinámicas para apoyar a tus equipos legales a mitigar ágilmente los riesgos identificados. Basado en leyes de EE.UU., Europa y Chile.</p></div>""", unsafe_allow_html=True)
+            tab_idx += 1
 
     # 0. SOBRE LAKUNAI (Landing)
     if loc.get("t7", "📖 Sobre Lakunai") in allowed_tab_names:
