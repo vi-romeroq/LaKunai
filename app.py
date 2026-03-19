@@ -20,9 +20,9 @@ def send_welcome_email(user_email):
     pwd = os.getenv("SMTP_PASS", "")
     if not sender or not pwd:
         return False
-    msg = MIMEText(f"Bienvenido a Lakunai GRC Platform.\n\nTu cuenta administrativa corporativa '{user_email}' ha sido habilitada exitosamente.\n\nIngresa a nuestra suite web para auditar el cumplimiento normativo de IA de tu compañía.\n\nEl equipo de Lakunai.")
-    msg['Subject'] = 'Bienvenido a Lakunai | Secure Access'
-    msg['From'] = f"Lakunai Security <{sender}>"
+    msg = MIMEText(f"Bienvenido a Normatix GRC Platform.\n\nTu cuenta administrativa corporativa '{user_email}' ha sido habilitada exitosamente.\n\nIngresa a nuestra suite web para auditar el cumplimiento normativo de IA de tu compañía.\n\nEl equipo de Normatix.")
+    msg['Subject'] = 'Bienvenido a Normatix | Secure Access'
+    msg['From'] = f"Normatix Security <{sender}>"
     msg['To'] = user_email
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
@@ -45,7 +45,7 @@ def generate_pdf_report(username: str, doc_names: str, risk_tier: str, report_te
     pdf.set_font('Helvetica', 'B', 22)
     pdf.set_text_color(56, 189, 248)
     pdf.set_xy(20, 8)
-    pdf.cell(0, 10, 'LAKUNAI', ln=False)
+    pdf.cell(0, 10, 'NORMATIX', ln=False)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(148, 163, 184)
     pdf.set_xy(20, 21)
@@ -106,7 +106,7 @@ def generate_pdf_report(username: str, doc_names: str, risk_tier: str, report_te
     pdf.set_y(-20)
     pdf.set_font('Helvetica', 'I', 8)
     pdf.set_text_color(148, 163, 184)
-    pdf.cell(0, 5, '© 2026 LaKunAI Soluciones Inteligentes | Este reporte es de carácter orientativo y no constituye asesoría legal vinculante.', align='C')
+    pdf.cell(0, 5, '© 2026 Normatix Soluciones Inteligentes | Este reporte es de carácter orientativo y no constituye asesoría legal vinculante.', align='C')
 
     return bytes(pdf.output())
 
@@ -115,7 +115,7 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 load_dotenv()
-DB_URL = os.getenv("DATABASE_URL", "sqlite:///lakunai_fallback.db")
+DB_URL = os.getenv("DATABASE_URL", "sqlite:///normatix_fallback.db")
 connect_args = {"check_same_thread": False} if "sqlite" in DB_URL else {}
 engine = create_engine(DB_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -248,7 +248,7 @@ def get_extracted_text(file_content_bytes, file_name):
     return StandardAnalyzer().extract_text(DummyFile(file_content_bytes, file_name))
 
 
-st.set_page_config(page_title="Lakunai | AI Enterprise GRC", page_icon="🧿", layout="wide", initial_sidebar_state="auto")
+st.set_page_config(page_title="Normatix | AI Enterprise GRC", page_icon="🧿", layout="wide", initial_sidebar_state="auto")
 
 # --- ULTRA PREMIUM CSS DESIGN ---
 st.markdown("""
@@ -317,7 +317,7 @@ T = {
         "inv_txt": "🌟 **Memoria Institucional Activa:** Búsqueda retrospectiva RAG activada para tu compañía.",
         "lang": "🌐 Idioma (i18n):", "domain": "📂 Industria:", "jur": "⚖️ Marco Regulatorio:",
         "t1": "🛡️ Auditoría Documental", "t2": "📊 Dashboard de IA", "t3": "🛠️ Buró Legal (RAG)", "t4": "📄 Model Cards",
-        "t5": "🎯 Red-Teaming", "t6": "🔗 Hub de APIs", "t7": "📖 Sobre Lakunai", "t8": "👑 Panel Super Admin",
+        "t5": "🎯 Red-Teaming", "t6": "🔗 Hub de APIs", "t7": "📖 Sobre Normatix", "t8": "👑 Panel Super Admin",
         "t1_h": "### Ingesta de Políticas y Contratos", "up_l": "📂 Documentos (Filtro Anti-PII Activo)", "run_a": "🚀 Ejecutar Análisis de Riesgo GRC",
         "spin": "Procesando de forma segura vía LLM...", "err_ext": "Sin texto.", "risk_t": "Clasificación Automática de Riesgo:",
         "rep_t": "### 📊 Reporte Estratégico Oficial", "down_r": "📥 Descargar Reporte (TXT)",
@@ -326,11 +326,11 @@ T = {
         "t2_c": ["Documento", "Nivel de Riesgo", "Timestamp del Sistema"],
         "t3_h": "### Asistente Legal de Mitigación (Memoria RAG)", "t3_d": "Nuestra IA analiza el contexto de tus auditorías previas para apoyar a tu equipo legal con sugerencias de mitigación.",
         "t3_n": "Rastreador inactivo. Requiere una auditoría previa.", "t3_ctx": "Contexto legal activo:",
-        "t4_h": "### Motor Transparencia: AI Model Cards", "t4_d": "Sube la documentación técnica de tu modelo y Lakunai generará su equivalente a un Model Card oficial (ISO/EU).",
+        "t4_h": "### Motor Transparencia: AI Model Cards", "t4_d": "Sube la documentación técnica de tu modelo y Normatix generará su equivalente a un Model Card oficial (ISO/EU).",
         "t4_btn": "🛠️ Compilar Model Card ISO", "t4_up": "📂 Sube los Datasets / Arquitectura",
-        "t5_h": "### Laboratorio de Hacker Ético Adversarial 🎯", "t5_d": "Ingresa un Endpoint real. LAKUNAI ejecutará peticiones HTTP inyectando prompts de prueba para evaluar la robustez de tu sistema.",
+        "t5_h": "### Laboratorio de Hacker Ético Adversarial 🎯", "t5_d": "Ingresa un Endpoint real. NORMATIX ejecutará peticiones HTTP inyectando prompts de prueba para evaluar la robustez de tu sistema.",
         "t5_url": "URL / Endpoint Real del Modelo de IA", "t5_atk": "⚔️ Lanzar Auditoría Adversarial",
-        "t6_h": "### Hub de Integración Continua (CI/CD) 🔗", "t6_d": "Sincroniza Lakunai directamente con tus flujos de despliegue.",
+        "t6_h": "### Hub de Integración Continua (CI/CD) 🔗", "t6_d": "Sincroniza Normatix directamente con tus flujos de despliegue.",
     },
     "English": {
         "hero_sub": "The AI that finds what<br><span>the law can't see.</span>",
@@ -339,7 +339,7 @@ T = {
         "inv_txt": "🌟 **Institutional Memory Active:** RAG retrospective search enabled for your company.",
         "lang": "🌐 UI Language:", "domain": "📂 Industry:", "jur": "⚖️ Regulatory Framework:",
         "t1": "🛡️ Document Audit", "t2": "📊 AI Dashboard", "t3": "🛠️ Remediation Desk", "t4": "📄 Model Cards",
-        "t5": "🎯 Red-Teaming", "t6": "🔗 DevOps API Hub", "t7": "📖 About Lakunai", "t8": "👑 Super Admin Panel",
+        "t5": "🎯 Red-Teaming", "t6": "🔗 DevOps API Hub", "t7": "📖 About Normatix", "t8": "👑 Super Admin Panel",
         "t1_h": "### Ingest Policies & Contracts", "up_l": "📂 Upload Documents (Anti-PII Active)", "run_a": "🚀 Execute GRC Risk Analysis",
         "spin": "Processing securely via LLM...", "err_ext": "No text.", "risk_t": "Automated Risk Classification:",
         "rep_t": "### 📊 Official Strategic Report", "down_r": "📥 Download Report (TXT)",
@@ -348,11 +348,11 @@ T = {
         "t2_c": ["Document", "Risk Threshold", "System Timestamp"],
         "t3_h": "### Legal Mitigation Assistant (RAG Memory)", "t3_d": "Our AI analyzes your prior audit context to support your legal team with mitigation suggestions.",
         "t3_n": "Tracker inactive. Requires a prior audit.", "t3_ctx": "Active legal context:",
-        "t4_h": "### Transparency Engine: AI Model Cards", "t4_d": "Upload your model's technical documentation and Lakunai will generate an ISO/EU standard Model Card.",
+        "t4_h": "### Transparency Engine: AI Model Cards", "t4_d": "Upload your model's technical documentation and Normatix will generate an ISO/EU standard Model Card.",
         "t4_btn": "🛠️ Compile ISO Model Card", "t4_up": "📂 Upload Technical Architecture",
-        "t5_h": "### Ethical Hacker / Adversarial Lab 🎯", "t5_d": "Enter a real endpoint. LAKUNAI will execute HTTP requests injecting test prompts to evaluate your system's robustness.",
+        "t5_h": "### Ethical Hacker / Adversarial Lab 🎯", "t5_d": "Enter a real endpoint. NORMATIX will execute HTTP requests injecting test prompts to evaluate your system's robustness.",
         "t5_url": "AI Model HTTP Endpoint", "t5_atk": "⚔️ Launch Adversarial Audit",
-        "t6_h": "### Continuous Integration Hub (CI/CD) 🔗", "t6_d": "Sync Lakunai directly with your deployment pipelines.",
+        "t6_h": "### Continuous Integration Hub (CI/CD) 🔗", "t6_d": "Sync Normatix directly with your deployment pipelines.",
     }
 }
 
@@ -384,7 +384,7 @@ def main():
         .hero-title span { background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(56,189,248,0.3));}
     </style>
     <div class="hero-container">
-        <div class="hero-badge">⚡ LAKUNAI ENTERPRISE ENGINE (V10)</div>
+        <div class="hero-badge">⚡ NORMATIX ENTERPRISE ENGINE (V10)</div>
         <p class="hero-title">Cierra los vacíos antes de que<br><span>te cuesten millones.</span></p>
     </div>
     """
@@ -446,7 +446,7 @@ def main():
             <div style='background:linear-gradient(180deg,rgba(2,132,199,0.15),rgba(37,99,235,0.1));border:2px solid #38bdf8;border-radius:20px;padding:30px;text-align:center;position:relative;'>
             <div style='position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#38bdf8;color:#0f172a;font-weight:800;font-size:0.75rem;padding:4px 16px;border-radius:20px;'>MÁS POPULAR</div>
             <div style='font-size:1.8rem;margin-bottom:8px;'>💎</div>
-            <h3 style='color:#38bdf8;font-size:1rem;font-weight:700;margin:0;'>LAKUNAI PRO</h3>
+            <h3 style='color:#38bdf8;font-size:1rem;font-weight:700;margin:0;'>NORMATIX PRO</h3>
             <div style='color:#f8fafc;font-size:2.5rem;font-weight:900;margin:15px 0 5px;'>$10.000 <span style='font-size:1rem;color:#94a3b8;'>CLP/m</span></div>
             <p style='color:#64748b;font-size:0.85rem;margin-bottom:20px;'>~USD 10 / mes</p>
             <ul style='color:#cbd5e1;text-align:left;font-size:0.9rem;line-height:2;list-style:none;padding:0;'>
@@ -573,7 +573,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
 2. Implementar un **canal de impugnación** documentado con SLA máximo de 5 días hábiles.
 3. Generar un **Model Card** según estándares ISO/IEC 42001 para el modelo de scoring.
 
-*Este reporte fue generado por Lakunai AI GRC Platform como demostración del análisis automatizado.*"""
+*Este reporte fue generado por Normatix AI GRC Platform como demostración del análisis automatizado.*"""
                     st.session_state['last_audit'] = demo_report
                     st.session_state['last_audit_docs'] = "Política_IA_Credito_Demo.pdf"
                     st.session_state['demo_mode'] = True
@@ -586,7 +586,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                 st.info("🔐 Función reservada. Requiere credenciales de Azure Entra ID.")
             if st.button("🔴 Continuar con Google Workspace", use_container_width=True):
                 st.info("🔐 Función reservada. Requiere credenciales de Google Cloud Console.")
-        st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes &nbsp;|&nbsp; <a href='mailto:contacto@lakunai.cl' style='color:#38bdf8;text-decoration:none;'>contacto@lakunai.cl</a></div>", unsafe_allow_html=True)
+        st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 Normatix Soluciones Inteligentes &nbsp;|&nbsp; <a href='mailto:contacto@normatix.cl' style='color:#38bdf8;text-decoration:none;'>contacto@normatix.cl</a></div>", unsafe_allow_html=True)
         st.stop()
 
     # =========================================================
@@ -625,7 +625,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
         st.sidebar.progress(min(usage_count / MAX_FREE_USES, 1.0))
         if usage_count >= MAX_FREE_USES:
             st.sidebar.error("⚠️ **Cuota Terminada**")
-            st.sidebar.markdown("<a href='https://lakunai.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:inline-block;padding:8px 16px;background:#2563eb;color:white;border-radius:8px;text-decoration:none;font-weight:bold;width:100%;text-align:center;'>💎 MEJORAR A LAKUNAI PRO ($10.000 CLP/m)</a>", unsafe_allow_html=True)
+            st.sidebar.markdown("<a href='https://lakunai.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:inline-block;padding:8px 16px;background:#2563eb;color:white;border-radius:8px;text-decoration:none;font-weight:bold;width:100%;text-align:center;'>💎 MEJORAR A NORMATIX PRO ($10.000 CLP/m)</a>", unsafe_allow_html=True)
         else:
             st.sidebar.caption(f"Auditorías Usadas: {usage_count} / {MAX_FREE_USES}")
     elif plan == "GUEST":
@@ -658,7 +658,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
         st.rerun()
 
     # Build tab list per role
-    t7_name = loc.get("t7", "📖 Sobre Lakunai")
+    t7_name = loc.get("t7", "📖 Sobre Normatix")
     t8_name = loc.get("t8", "👑 Panel Super Admin")
     if role == "ADMINISTRADOR":
         allowed_tab_names = [t7_name, t8_name, loc["t1"], loc["t2"], loc["t3"], loc["t4"], loc["t5"], loc["t6"]]
@@ -672,13 +672,13 @@ El documento analizado corresponde a una política interna de uso de IA para eva
     tabs = st.tabs(allowed_tab_names)
     tab_idx = 0
 
-    # --- TAB: SOBRE LAKUNAI ---
+    # --- TAB: SOBRE NORMATIX ---
     if t7_name in allowed_tab_names:
         with tabs[tab_idx]:
             st.markdown("""
             <div style="text-align:center;padding:10px 0 40px 0;">
                 <h1 style="color:#f8fafc;font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;line-height:1.2;margin-bottom:15px;font-family:'Plus Jakarta Sans',sans-serif;">¿ESTÁ TU EMPRESA REALMENTE PREPARADA<br><span style="color:#38bdf8;">PARA ADOPTAR LA INTELIGENCIA ARTIFICIAL?</span></h1>
-                <h3 style="color:#94a3b8;font-weight:400;font-size:1.2rem;">Lakunai audita tu infraestructura proactivamente para identificar y mitigar riesgos antes de un despliegue de IA.</h3>
+                <h3 style="color:#94a3b8;font-weight:400;font-size:1.2rem;">Normatix audita tu infraestructura proactivamente para identificar y mitigar riesgos antes de un despliegue de IA.</h3>
             </div>
             """, unsafe_allow_html=True)
             ca, cb, cc = st.columns(3)
@@ -702,7 +702,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
     # --- TAB: SUPER ADMIN ---
     if t8_name in allowed_tab_names:
         with tabs[tab_idx]:
-            st.markdown("### 👑 Lakunai SaaS Control Center")
+            st.markdown("### 👑 Normatix SaaS Control Center")
             st.caption("Visión global financiera y operativa de todos los clientes de la plataforma.")
             db = SessionLocal()
             try:
@@ -747,7 +747,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                 
                 try:
                     import json
-                    with open("lakunai_config.json", "r", encoding="utf-8") as fcf:
+                    with open("normatix_config.json", "r", encoding="utf-8") as fcf:
                         current_cfg = json.load(fcf)
                 except:
                     current_cfg = {"system_prompt": "", "enable_web_search": False}
@@ -758,7 +758,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                 if st.button("Guardar Configuración en Caliente (Hot-Reload)"):
                     current_cfg["system_prompt"] = new_prompt
                     current_cfg["enable_web_search"] = agentic_search
-                    with open("lakunai_config.json", "w", encoding="utf-8") as fcf:
+                    with open("normatix_config.json", "w", encoding="utf-8") as fcf:
                         json.dump(current_cfg, fcf, indent=4)
                     st.success("✅ Motor LLM actualizado para todos los inquilinos (Tenants) al instante.")
             finally:
@@ -830,7 +830,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                             st.stop()
                         st.session_state['last_audit'] = result_text
                         st.session_state['last_audit_docs'] = ", ".join(doc_names)
-                        st.download_button(loc["down_r"], data=result_text, file_name="Lakunai_Audit.txt")
+                        st.download_button(loc["down_r"], data=result_text, file_name="Normatix_Audit.txt")
                         # --- BRANDED PDF DOWNLOAD ---
                         if plan == "PRO" or role == "ADMINISTRADOR":
                             try:
@@ -843,7 +843,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                                 st.download_button(
                                     "📄 Descargar Reporte Oficial (PDF Corporativo)",
                                     data=pdf_bytes,
-                                    file_name=f"Lakunai_Audit_{datetime.datetime.now().strftime('%Y%m%d')}.pdf",
+                                    file_name=f"Normatix_Audit_{datetime.datetime.now().strftime('%Y%m%d')}.pdf",
                                     mime="application/pdf"
                                 )
                             except Exception as e:
@@ -974,10 +974,10 @@ El documento analizado corresponde a una política interna de uso de IA para eva
             st.markdown(loc["t6_h"])
             st.write(loc["t6_d"])
             st.markdown("#### 🔑 Token de Integración")
-            st.code("LAKUNAI-G-8X912-AF20X-L29", language="bash")
+            st.code("NORMATIX-G-8X912-AF20X-L29", language="bash")
             st.warning("⚠️ No insertes este token directamente. Usa GitHub Secrets.")
             st.markdown("#### GitHub Actions YAML")
-            st.code("""name: "Lakunai Compliance Check"
+            st.code("""name: "Normatix Compliance Check"
 on: [pull_request]
 
 jobs:
@@ -986,19 +986,19 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Run GRC Matrix Scanner
-      uses: Lakunai-AI/action-scanner@v1
+      uses: Normatix-AI/action-scanner@v1
       with:
-        api-key: ${{ secrets.LAKUNAI_TOKEN }}
+        api-key: ${{ secrets.NORMATIX_TOKEN }}
         model-path: './arquitectura/modelo_v2.bin'
         framework: 'EU_AI_ACT'""", language="yaml")
             st.markdown("#### API cURL")
-            st.code("""curl -X POST https://api.lakunai.io/v1/audit/live \\
-  -H "Authorization: Bearer $LAKUNAI_TOKEN" \\
+            st.code("""curl -X POST https://api.normatix.io/v1/audit/live \\
+  -H "Authorization: Bearer $NORMATIX_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{"model_endpoint": "https://mi-modelo.empresa.cl", "tests": ["toxicity", "gender_bias"]}'""", language="bash")
         tab_idx += 1
 
-    st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes &nbsp;|&nbsp; <a href='mailto:contacto@lakunai.cl' style='color:#38bdf8;text-decoration:none;'>contacto@lakunai.cl</a></div>", unsafe_allow_html=True)
+    st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 Normatix Soluciones Inteligentes &nbsp;|&nbsp; <a href='mailto:contacto@normatix.cl' style='color:#38bdf8;text-decoration:none;'>contacto@normatix.cl</a></div>", unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
