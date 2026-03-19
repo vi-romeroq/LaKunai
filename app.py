@@ -113,6 +113,8 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
     .stApp { 
+        background-color: #050b14 !important;
+        background-image: radial-gradient(circle at 50% 0%, #0c1838 0%, #050b14 60%);
         background: radial-gradient(circle at 10% 20%, rgb(9, 14, 25) 0%, rgb(3, 7, 18) 100%);
         color: #f1f5f9; font-family: 'Plus Jakarta Sans', sans-serif; 
     }
@@ -534,6 +536,9 @@ curl -X POST https://api.lakunai.io/v1/audit/live \\
   -d '{"model_endpoint": "https://mi-modelo.empresa.cl", "tests": ["toxicity", "gender_bias"]}'
             """, language="bash")
         tab_idx += 1
+
+
+    st.markdown("<br><br><br><br><br><div style='text-align: center; color: #475569; font-size: 0.85rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
