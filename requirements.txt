@@ -1,0 +1,11 @@
+streamlit
+langchain
+langchain-groq
+langchain-text-splitters
+pymupdf
+python-docx
+python-dotenv
+pandas
+sqlalchemy
+requests
+rank-bm25
