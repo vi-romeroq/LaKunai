@@ -233,7 +233,11 @@ def main():
         st.session_state['auth_role'] = None
         st.session_state['auth_plan'] = None
 
-    st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2059/2059080.png", width=70)
+    import os as os_sys
+    if os_sys.path.exists("logo.png"):
+        st.sidebar.image("logo.png", use_container_width=True)
+    else:
+        st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2059/2059080.png", width=70)
     target_lang_opt = st.sidebar.selectbox("🌐 GRC Language / Interfaz:", ["Spanish", "English"])
     loc = T.get(target_lang_opt, T["Spanish"])
     
