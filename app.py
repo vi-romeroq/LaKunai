@@ -42,10 +42,13 @@ def generate_pdf_report(username: str, doc_names: str, risk_tier: str, report_te
     # Header bar
     pdf.set_fill_color(5, 11, 20)
     pdf.rect(0, 0, 210, 35, 'F')
-    pdf.set_font('Helvetica', 'B', 22)
-    pdf.set_text_color(56, 189, 248)
-    pdf.set_xy(20, 8)
-    pdf.cell(0, 10, 'NORMATIX', ln=False)
+    if os.path.exists("logo.png"):
+        pdf.image("logo.png", x=18, y=5, w=60, h=22)
+    else:
+        pdf.set_font('Helvetica', 'B', 22)
+        pdf.set_text_color(56, 189, 248)
+        pdf.set_xy(20, 8)
+        pdf.cell(0, 10, 'NORMATIX', ln=False)
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(148, 163, 184)
     pdf.set_xy(20, 21)
