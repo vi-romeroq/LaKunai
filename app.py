@@ -315,7 +315,7 @@ def main():
             st.sidebar.progress(usage_count / MAX_FREE_USES)
             if usage_count >= MAX_FREE_USES:
                 st.sidebar.error("⚠️ **Cuota Terminada**")
-                st.sidebar.markdown("<a href='https://buy.stripe.com/test_12345' target='_blank' style='display:inline-block; padding:8px 16px; background:#2563eb; color:white; border-radius:8px; text-decoration:none; font-weight:bold; width:100%; text-align:center;'>🚀 MEJORAR A LAKUNAI PRO ($199/m)</a>", unsafe_allow_html=True)
+                st.sidebar.markdown("<a href='https://lakunai.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:inline-block; padding:8px 16px; background:#2563eb; color:white; border-radius:8px; text-decoration:none; font-weight:bold; width:100%; text-align:center;'>🚀 MEJORAR A LAKUNAI PRO ($199/m)</a>", unsafe_allow_html=True)
             else:
                 st.sidebar.caption(f"Auditorías Usadas: {usage_count} / {MAX_FREE_USES}")
         elif plan == "GUEST":
