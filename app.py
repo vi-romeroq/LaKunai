@@ -254,7 +254,7 @@ def main():
     components.html(hero_html, height=280, scrolling=False)
     
     if not st.session_state['auth_username']:
-        auth_tabs = st.sidebar.tabs(["🔑 Ingresar", "📝 Registrarse"])
+        auth_tabs = st.sidebar.tabs(["🔑 Ingresar", "📝 Registro", "👁️ Anónimo"])
         
         with auth_tabs[0]:
             st.markdown("### Acceso Corporativo")
@@ -283,6 +283,15 @@ def main():
                         st.error("❌ Ese nombre de usuario ya está tomado.")
                 else:
                     st.error("Llena ambos campos.")
+        
+        with auth_tabs[2]:
+            st.markdown("### Modo Exploración")
+            st.caption("Prueba la IA 1 vez sin dejar datos.")
+            if st.button("Auditar Gratis (1 Crédito)", use_container_width=True):
+                st.session_state['auth_username'] = "GUEST_SESSION"
+                st.session_state['auth_role'] = "INVITADO"
+                st.session_state['auth_plan'] = "GUEST"
+                st.rerun()
         st.stop()
     else:
         username = st.session_state['auth_username']
@@ -295,16 +304,27 @@ def main():
         st.sidebar.success(f"🔒 Nivel de Seguridad: **{role}**")
         st.sidebar.markdown("---")
         
-        usage_count = get_usage(username)
-        MAX_FREE_USES = 3 if plan == "FREE" else 1000000 
+        if plan == "GUEST":
+            usage_count = st.session_state.get('guest_uses', 0)
+            MAX_FREE_USES = 1
+        else:
+            usage_count = get_usage(username)
+            MAX_FREE_USES = 3 if plan == "FREE" else 1000000 
         
         if plan == "FREE":
             st.sidebar.progress(usage_count / MAX_FREE_USES)
             if usage_count >= MAX_FREE_USES:
-                st.sidebar.error("⚠️ **Cuota Gratuita Terminada**")
+                st.sidebar.error("⚠️ **Cuota Terminada**")
                 st.sidebar.markdown("<a href='https://buy.stripe.com/test_12345' target='_blank' style='display:inline-block; padding:8px 16px; background:#2563eb; color:white; border-radius:8px; text-decoration:none; font-weight:bold; width:100%; text-align:center;'>🚀 MEJORAR A LAKUNAI PRO ($199/m)</a>", unsafe_allow_html=True)
             else:
                 st.sidebar.caption(f"Auditorías Usadas: {usage_count} / {MAX_FREE_USES}")
+        elif plan == "GUEST":
+            st.sidebar.progress(usage_count / MAX_FREE_USES)
+            if usage_count >= MAX_FREE_USES:
+                st.sidebar.error("⚠️ **Prueba Anónima Terminada**")
+                st.sidebar.markdown("Para seguir auditando, **cierra sesión (abajo)** y créate una cuenta gratuita sumando 3 créditos más.")
+            else:
+                st.sidebar.caption(f"De un solo uso: {usage_count} / {MAX_FREE_USES}")
         else:
             st.sidebar.info("∞ Licencias Ilimitadas (Enterprise)")
             
@@ -329,6 +349,7 @@ def main():
     if role == "ADMINISTRADOR": allowed_tab_names = [loc["t1"], loc["t2"], loc["t3"], loc["t4"], loc["t5"], loc["t6"]]
     elif role == "AUDITOR_LEGAL": allowed_tab_names = [loc["t1"], loc["t2"], loc["t3"]]
     elif role == "INGENIERO_IA": allowed_tab_names = [loc["t2"], loc["t4"], loc["t5"], loc["t6"]]
+    elif role == "INVITADO": allowed_tab_names = [loc["t1"]]
         
     tabs = st.tabs(allowed_tab_names)
     username = st.session_state['auth_username']
@@ -339,7 +360,7 @@ def main():
         with tabs[tab_idx]:
             st.markdown(loc["t1_h"])
             uploaded_files = st.file_uploader(loc["up_l"], type=["pdf", "txt", "docx"], accept_multiple_files=True)
-            analyze_btn = st.button(loc["run_a"], use_container_width=True, disabled=(usage_count >= 3 and plan == 'FREE'))
+            analyze_btn = st.button(loc["run_a"], use_container_width=True, disabled=((usage_count >= 3 and plan == 'FREE') or (st.session_state.get('guest_uses', 0) >= 1 and plan == 'GUEST')))
             
             if analyze_btn and uploaded_files:
                 with st.spinner(loc["spin"]):
@@ -358,8 +379,11 @@ def main():
                         badge_class = f"risk-{risk_tier.lower()}"
                         st.markdown(f'<div class="risk-badge {badge_class}">{loc["risk_t"]} {risk_tier}</div>', unsafe_allow_html=True)
                         
-                        save_audit(username, ", ".join(doc_names), risk_tier)
-                        increment_usage(username)
+                        if plan == "GUEST":
+                            st.session_state['guest_uses'] = st.session_state.get('guest_uses', 0) + 1
+                        else:
+                            save_audit(username, ", ".join(doc_names), risk_tier)
+                            increment_usage(username)
                         
                         # --- LOCAL FAISS/BM25 RAG MEMORY PERSISTENCE ---
                         rag_dir = f"data_rag/{username}"
