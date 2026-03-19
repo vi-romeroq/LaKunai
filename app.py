@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 import os
 import datetime
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 from analyzer import StandardAnalyzer
 import hashlib
 
@@ -268,7 +270,7 @@ def main():
             st.markdown("""<div style='background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9)); padding:30px; border-radius:20px; border-top:4px solid #38bdf8; height:100%; box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
             <div style='font-size:2.5rem; margin-bottom:15px;'>🔍</div>
             <h4 style='color:#f8fafc; font-size:1.1rem; line-height:1.4; font-weight:800;'>DETECTA PELIGROS OCULTOS</h4>
-            <p style='color:#cbd5e1; font-size:0.95rem; line-height:1.6;'>Identifica patrones de riesgo que escapan a revisiones manuales. Actúa como tu primera línea de defensa para auditar tu modelo de IA y minimizar la exposición legal corporativa.</p></div>""", unsafe_allow_html=True)
+            <p style='color:#cbd5e1; font-size:0.95rem; line-height:1.6;'>Identifica patrones de riesgo que escapan a revisiones manuales. Actúa como tu primera línea de defensa para auditar el cumplimiento y documentación de tu IA y minimizar la exposición legal corporativa.</p></div>""", unsafe_allow_html=True)
         with c2:
             st.markdown("""<div style='background:linear-gradient(180deg, rgba(15,23,42,0.9), rgba(2,6,23,0.9)); padding:30px; border-radius:20px; border-top:4px solid #818cf8; height:100%; box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
             <div style='font-size:2.5rem; margin-bottom:15px;'>🛡️</div>
@@ -488,7 +490,28 @@ def main():
                 
                 st.dataframe(df, use_container_width=True, hide_index=True)
                 st.markdown("### Histograma de Riesgo Oficial")
-                st.bar_chart(risk_counts, color="#38bdf8")
+                # Beautiful Plotly Donut Chart
+                fig = px.pie(
+                    values=risk_counts.values, 
+                    names=risk_counts.index, 
+                    hole=0.7,
+                    color=risk_counts.index,
+                    color_discrete_map={
+                        "UNACCEPTABLE": "#ef4444",
+                        "HIGH": "#f97316",
+                        "LIMITED": "#eab308",
+                        "MINIMAL": "#22c55e"
+                    }
+                )
+                fig.update_traces(textposition='outside', textinfo='percent+label', marker=dict(line=dict(color='#0f172a', width=2)))
+                fig.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)", 
+                    plot_bgcolor="rgba(0,0,0,0)", 
+                    margin=dict(t=20, b=20, l=20, r=20),
+                    showlegend=False,
+                    annotations=[dict(text=f"{len(df)}<br>Bases", x=0.5, y=0.5, font_size=18, showarrow=False, font_color="#f8fafc")]
+                )
+                st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info(loc["t2_n"])
         tab_idx += 1

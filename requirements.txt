@@ -8,3 +8,5 @@ python-docx>=1.1.2
 SQLAlchemy>=2.0.38
 rank-bm25>=0.2.2
 psycopg2-binary>=2.9.9
+
+plotly>=5.18.0
