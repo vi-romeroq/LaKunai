@@ -8,8 +8,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 from analyzer import StandardAnalyzer
 import hashlib
+import bcrypt
 from fpdf import FPDF
 import io
+import re
 
 def generate_pdf_report(username: str, doc_names: str, risk_tier: str, report_text: str) -> bytes:
     """Generate a professional branded PDF audit report."""
@@ -180,7 +182,9 @@ def register_user(username, password, role="AUDITOR_LEGAL"):
     try:
         if db.query(User).filter(User.username == username).first():
             return False
-        db.add(User(username=username, password_hash=hashlib.sha256(password.encode()).hexdigest(), role=role, plan="FREE"))
+        # bcrypt: automatically generates a unique salt per password
+        pw_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        db.add(User(username=username, password_hash=pw_hash, role=role, plan="FREE"))
         db.commit()
         return True
     finally:
@@ -190,7 +194,20 @@ def authenticate_user(username, password):
     db = SessionLocal()
     try:
         u = db.query(User).filter(User.username == username).first()
-        if u and u.password_hash == hashlib.sha256(password.encode()).hexdigest():
+        if not u:
+            return None, None, None
+        stored = u.password_hash
+        # Support legacy SHA-256 accounts (migration path)
+        if stored.startswith("$2b$") or stored.startswith("$2a$"):
+            match = bcrypt.checkpw(password.encode('utf-8'), stored.encode('utf-8'))
+        else:
+            # Legacy SHA-256 — verify then re-hash with bcrypt automatically
+            match = (stored == hashlib.sha256(password.encode()).hexdigest())
+            if match:
+                new_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                u.password_hash = new_hash
+                db.commit()
+        if match:
             return u.username, u.role, u.plan
         return None, None, None
     finally:
@@ -436,14 +453,30 @@ def main():
                 u_in = st.text_input("Usuario Corporativo", key="log_u")
                 p_in = st.text_input("Contraseña", type="password", key="log_p")
                 if st.button("Iniciar Sesión", use_container_width=True):
-                    un, role, plan = authenticate_user(u_in, p_in)
-                    if un:
-                        st.session_state['auth_username'] = un
-                        st.session_state['auth_role'] = role
-                        st.session_state['auth_plan'] = plan
-                        st.rerun()
+                    # --- RATE LIMITING: brute force protection ---
+                    now = datetime.datetime.now()
+                    attempts = st.session_state.get('login_attempts', 0)
+                    lockout_until = st.session_state.get('lockout_until', None)
+                    if lockout_until and now < lockout_until:
+                        remaining = int((lockout_until - now).total_seconds())
+                        st.error(f"🔒 Cuenta bloqueada. Intenta en {remaining} segundos.")
                     else:
-                        st.error("Credenciales erróneas o cuenta inexistente.")
+                        un, role, plan = authenticate_user(u_in, p_in)
+                        if un:
+                            st.session_state['login_attempts'] = 0
+                            st.session_state['lockout_until'] = None
+                            st.session_state['auth_username'] = un
+                            st.session_state['auth_role'] = role
+                            st.session_state['auth_plan'] = plan
+                            st.rerun()
+                        else:
+                            attempts += 1
+                            st.session_state['login_attempts'] = attempts
+                            if attempts >= 5:
+                                st.session_state['lockout_until'] = now + datetime.timedelta(minutes=5)
+                                st.error("🔒 Demasiados intentos fallidos. Cuenta bloqueada por 5 minutos.")
+                            else:
+                                st.error(f"Credenciales erróneas. Intentos fallidos: {attempts}/5")
 
             with auth_tabs[1]:
                 st.markdown("<br>", unsafe_allow_html=True)
@@ -661,6 +694,14 @@ El documento analizado corresponde a una política interna de uso de IA para eva
             if is_blocked:
                 st.warning("Límite de auditorías alcanzado. Mejora tu plan para continuar.")
 
+            # --- FILE SIZE VALIDATION (15MB max) ---
+            MAX_FILE_SIZE = 15 * 1024 * 1024
+            if uploaded_files:
+                oversized = [f.name for f in uploaded_files if len(f.getvalue()) > MAX_FILE_SIZE]
+                if oversized:
+                    st.error(f"⚠️ Archivo(s) demasiado grandes (máx. 15MB): {', '.join(oversized)}")
+                    uploaded_files = [f for f in uploaded_files if len(f.getvalue()) <= MAX_FILE_SIZE]
+
             if analyze_btn and uploaded_files:
                 with st.spinner(loc["spin"]):
                     analyzer = StandardAnalyzer()
@@ -688,7 +729,10 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                         os.makedirs(rag_dir, exist_ok=True)
                         timestamp_str = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
                         for d_name in doc_names:
-                            safe_name = "".join([c for c in d_name if c.isalpha() or c.isdigit()]).rstrip() or "doc"
+                            # Path traversal protection: strip directory components + sanitize
+                            base_name = os.path.basename(d_name)
+                            safe_name = "".join([c for c in base_name if c.isalpha() or c.isdigit()]).rstrip() or "doc"
+                            safe_name = safe_name[:50]  # Max 50 chars
                             with open(f"{rag_dir}/{timestamp_str}_{safe_name}.txt", "w", encoding="utf-8") as f_rag:
                                 f_rag.write(combined_text)
 
@@ -808,10 +852,24 @@ El documento analizado corresponde a una política interna de uso de IA para eva
             st.write(loc["t5_d"])
             model_endpoint = st.text_input(loc["t5_url"], "http://localhost:8000/v1/chat/completions")
             if st.button(loc["t5_atk"], use_container_width=True):
-                with st.spinner("Inyectando Payloads y Evaluando (HTTP Real / Simulado)..."):
-                    analyzer = StandardAnalyzer()
-                    st.write_stream(analyzer.perform_red_teaming_stream(model_endpoint))
-                    increment_usage(username)
+                # --- SSRF PROTECTION: block private IP ranges ---
+                ssrf_safe = True
+                private_patterns = [
+                    r'localhost', r'127\.', r'10\.', r'192\.168\.', r'172\.(1[6-9]|2[0-9]|3[01])\.',
+                    r'0\.0\.0\.0', r'169\.254\.', r'::1', r'metadata\.google'
+                ]
+                url_lower = model_endpoint.lower()
+                if not url_lower.startswith(('http://', 'https://')):
+                    st.error("⛔ URL inválida. Debe comenzar con http:// o https://")
+                    ssrf_safe = False
+                elif any(re.search(p, url_lower) for p in private_patterns):
+                    st.error("⛔ URL bloqueada por seguridad: no se permiten IPs privadas o locales.")
+                    ssrf_safe = False
+                if ssrf_safe:
+                    with st.spinner("Inyectando Payloads y Evaluando (HTTP Real / Simulado)..."):
+                        analyzer = StandardAnalyzer()
+                        st.write_stream(analyzer.perform_red_teaming_stream(model_endpoint))
+                        increment_usage(username)
         tab_idx += 1
 
     # --- TAB: CI/CD HUB ---
