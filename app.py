@@ -10,7 +10,6 @@ from analyzer import StandardAnalyzer
 import hashlib
 import bcrypt
 from fpdf import FPDF
-import io
 import re
 
 def generate_pdf_report(username: str, doc_names: str, risk_tier: str, report_text: str) -> bytes:
@@ -495,7 +494,7 @@ def main():
 
             with auth_tabs[1]:
                 st.markdown("<br>", unsafe_allow_html=True)
-                r_un = st.text_input("Crear Usuario", key="reg_u")
+                r_un = st.text_input("Crear Usuario (letras, números, _)", key="reg_u", max_chars=40)
                 r_pw = st.text_input("Crear Contraseña", type="password", key="reg_p")
                 r_rol = st.selectbox("Rol", ["AUDITOR_LEGAL", "INGENIERO_IA"])
                 if st.button("Crear Cuenta (3 Auditorías)", use_container_width=True):
@@ -503,8 +502,10 @@ def main():
                         st.error("⚠️ Completa ambos campos.")
                     elif len(r_un) < 4:
                         st.error("⚠️ El usuario debe tener al menos 4 caracteres.")
-                    elif " " in r_un:
-                        st.error("⚠️ El usuario no puede contener espacios.")
+                    elif not re.match(r'^[a-zA-Z0-9_]+$', r_un):
+                        st.error("⚠️ El usuario solo puede contener letras, números y guiones bajos.")
+                    elif len(r_un) > 40:
+                        st.error("⚠️ El usuario no puede superar 40 caracteres.")
                     elif len(r_pw) < 8:
                         st.error("⚠️ La contraseña debe tener al menos 8 caracteres.")
                     else:
@@ -554,7 +555,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                     st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
+        st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes &nbsp;|&nbsp; <a href='mailto:contacto@lakunai.cl' style='color:#38bdf8;text-decoration:none;'>contacto@lakunai.cl</a></div>", unsafe_allow_html=True)
         st.stop()
 
     # =========================================================
@@ -617,9 +618,12 @@ El documento analizado corresponde a una política interna de uso de IA para eva
     jurisdiction = st.sidebar.selectbox(loc["jur"], ["Chile (Ley N° 19.628 / Proyecto Ley IA)", "EU AI Act (Europa)", "USA (NIST AI RMF)"])
 
     if st.sidebar.button("Cerrar Sesión"):
-        st.session_state['auth_username'] = None
-        st.session_state['auth_role'] = None
-        st.session_state['auth_plan'] = None
+        # Full session wipe — leaves no stale state between users
+        keys_to_clear = ['auth_username', 'auth_role', 'auth_plan', 'session_start',
+                         'last_audit', 'last_audit_docs', 'messages', 'demo_mode',
+                         'guest_uses', 'login_attempts', 'lockout_until']
+        for k in keys_to_clear:
+            st.session_state.pop(k, None)
         st.rerun()
 
     # Build tab list per role
@@ -859,7 +863,11 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                                 retrieved_context = f"--- RAG CONTEXT ---\n{top_doc[:3000]}\n\n"
                         full_context = retrieved_context + "--- LATEST AUDIT ---\n" + st.session_state.get('last_audit', '')
                         analyzer = get_analyzer()
-                        response = st.write_stream(analyzer.remediate_stream(full_context, prompt))
+                        try:
+                            response = st.write_stream(analyzer.remediate_stream(full_context, prompt))
+                        except Exception as rag_err:
+                            response = "⚠️ Error al conectar con el asistente legal. Por favor intenta nuevamente."
+                            st.error(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
         tab_idx += 1
 
@@ -935,7 +943,7 @@ jobs:
   -d '{"model_endpoint": "https://mi-modelo.empresa.cl", "tests": ["toxicity", "gender_bias"]}'""", language="bash")
         tab_idx += 1
 
-    st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
+    st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes &nbsp;|&nbsp; <a href='mailto:contacto@lakunai.cl' style='color:#38bdf8;text-decoration:none;'>contacto@lakunai.cl</a></div>", unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
