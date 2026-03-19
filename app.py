@@ -199,7 +199,7 @@ T = {
         "t5_h": "### Laboratorio de Hacker Ético Adversarial 🎯", "t5_d": "Ingresa un Endpoint real. LAKUNAI ejecutará peticiones HTTP POST reales inyectando prompts tóxicos.",
         "t5_url": "URL / Endpoint Real del Modelo de IA", "t5_atk": "⚔️ Lanzar Ataque GRC (Red-Teaming)",
         
-        "t6_h": "### Hub de Integración Continua (CI/CD) 🔗", "t7": "📖 Sobre Lakunai", "t7": "📖 Sobre Lakunai", "t6_d": "Sincroniza Lakunai directamente con tus flujos de despliegue.",
+        "t6_h": "### Hub de Integración Continua (CI/CD) 🔗", "t7": "📖 Sobre Lakunai", "t8": "👑 Panel Super Admin", "t6_d": "Sincroniza Lakunai directamente con tus flujos de despliegue.",
     },
     "English": {
         "hero_sub": "The AI that finds what<br><span>the law can't see.</span>",
@@ -227,7 +227,7 @@ T = {
         "t5_h": "### Ethical Hacker / Adversarial Lab 🎯", "t5_d": "Enter a real endpoint. LAKUNAI will execute HTTP POST requests injecting toxic prompts to test the target.",
         "t5_url": "AI Model HTTP Endpoint", "t5_atk": "⚔️ Launch GRC Attack (Red-Teaming)",
         
-        "t6_h": "### Continuous Integration Hub (CI/CD) 🔗", "t6_d": "Sync Lakunai directly with your deployment pipelines.",
+        "t6_h": "### Continuous Integration Hub (CI/CD) 🔗", "t8": "👑 Panel Super Admin", "t6_d": "Sync Lakunai directly with your deployment pipelines.",
     }
 }
 
@@ -330,7 +330,46 @@ def main():
                 st.markdown("</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
                 
-        st.markdown("<br><br><br><br><br><div style='text-align: center; color: #475569; font-size: 0.85rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
+    
+    # 8. SUPER ADMIN DASHBOARD
+    if loc.get("t8", "👑 Panel Super Admin") in allowed_tab_names:
+        with tabs[tab_idx]:
+            st.markdown("### 👑 Lakunai SaaS Control Center")
+            st.caption("Visión global financiera y operativa de todos los clientes unidos a la plataforma.")
+            
+            db = SessionLocal()
+            try:
+                total_users = db.query(User).count()
+                pro_users = db.query(User).filter(User.plan == "PRO").count()
+                mrr = pro_users * 10000
+                total_audits = sum([u.count for u in db.query(Usage).all()])
+                
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Clientes Registrados", total_users)
+                c2.metric("Suscripciones PRO", pro_users)
+                c3.metric("MRR (Ingreso Mensual)", f"${mrr:,.0f} CLP")
+                c4.metric("Auditorías Globales", total_audits)
+                
+                st.markdown("---")
+                st.markdown("#### 🏢 Directorio B2B de Clientes")
+                users = db.query(User).order_by(User.id.desc()).all()
+                if users:
+                    df_u = pd.DataFrame([(u.id, u.username, u.role, u.plan) for u in users], columns=["ID", "Email/Usuario", "Rol Asignado", "Suscripción"])
+                    st.dataframe(df_u, use_container_width=True, hide_index=True)
+                
+                    col_plt1, col_plt2 = st.columns(2)
+                    with col_plt1:
+                        fig1 = px.pie(df_u, names="Suscripción", title="Distribución de Tiers", color="Suscripción", color_discrete_map={"PRO": "#38bdf8", "FREE": "#94a3b8", "GUEST": "#cbd5e1"})
+                        fig1.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#f8fafc")
+                        st.plotly_chart(fig1, use_container_width=True)
+                    with col_plt2:
+                        fig2 = px.bar(df_u["Rol Asignado"].value_counts().reset_index(), x="count", y="Rol Asignado", orientation='h', title="Densidad de Casos de Uso", color_discrete_sequence=["#818cf8"])
+                        fig2.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#f8fafc", yaxis={'categoryorder':'total ascending'})
+                        st.plotly_chart(fig2, use_container_width=True)
+            finally:
+                db.close()
+        tab_idx += 1
+\n    st.markdown("<br><br><br><br><br><div style='text-align: center; color: #475569; font-size: 0.85rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
         st.stop()
     else:
         username = st.session_state['auth_username']
@@ -386,7 +425,7 @@ def main():
 
     allowed_tab_names = []
     t7_name = loc.get("t7", "📖 Sobre Lakunai")
-    if role == "ADMINISTRADOR": allowed_tab_names = [t7_name, loc["t1"], loc["t2"], loc["t3"], loc["t4"], loc["t5"], loc["t6"]]
+    if role == "ADMINISTRADOR": allowed_tab_names = [t7_name, loc.get("t8", "👑 Panel Super Admin"), loc["t1"], loc["t2"], loc["t3"], loc["t4"], loc["t5"], loc["t6"]]
     elif role == "AUDITOR_LEGAL": allowed_tab_names = [t7_name, loc["t1"], loc["t2"], loc["t3"]]
     elif role == "INGENIERO_IA": allowed_tab_names = [t7_name, loc["t2"], loc["t4"], loc["t5"], loc["t6"]]
     elif role == "INVITADO": allowed_tab_names = [t7_name, loc["t1"]]
@@ -620,7 +659,46 @@ curl -X POST https://api.lakunai.io/v1/audit/live \\
         tab_idx += 1
 
 
-    st.markdown("<br><br><br><br><br><div style='text-align: center; color: #475569; font-size: 0.85rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
+
+    # 8. SUPER ADMIN DASHBOARD
+    if loc.get("t8", "👑 Panel Super Admin") in allowed_tab_names:
+        with tabs[tab_idx]:
+            st.markdown("### 👑 Lakunai SaaS Control Center")
+            st.caption("Visión global financiera y operativa de todos los clientes unidos a la plataforma.")
+            
+            db = SessionLocal()
+            try:
+                total_users = db.query(User).count()
+                pro_users = db.query(User).filter(User.plan == "PRO").count()
+                mrr = pro_users * 10000
+                total_audits = sum([u.count for u in db.query(Usage).all()])
+                
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Clientes Registrados", total_users)
+                c2.metric("Suscripciones PRO", pro_users)
+                c3.metric("MRR (Ingreso Mensual)", f"${mrr:,.0f} CLP")
+                c4.metric("Auditorías Globales", total_audits)
+                
+                st.markdown("---")
+                st.markdown("#### 🏢 Directorio B2B de Clientes")
+                users = db.query(User).order_by(User.id.desc()).all()
+                if users:
+                    df_u = pd.DataFrame([(u.id, u.username, u.role, u.plan) for u in users], columns=["ID", "Email/Usuario", "Rol Asignado", "Suscripción"])
+                    st.dataframe(df_u, use_container_width=True, hide_index=True)
+                
+                    col_plt1, col_plt2 = st.columns(2)
+                    with col_plt1:
+                        fig1 = px.pie(df_u, names="Suscripción", title="Distribución de Tiers", color="Suscripción", color_discrete_map={"PRO": "#38bdf8", "FREE": "#94a3b8", "GUEST": "#cbd5e1"})
+                        fig1.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#f8fafc")
+                        st.plotly_chart(fig1, use_container_width=True)
+                    with col_plt2:
+                        fig2 = px.bar(df_u["Rol Asignado"].value_counts().reset_index(), x="count", y="Rol Asignado", orientation='h', title="Densidad de Casos de Uso", color_discrete_sequence=["#818cf8"])
+                        fig2.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#f8fafc", yaxis={'categoryorder':'total ascending'})
+                        st.plotly_chart(fig2, use_container_width=True)
+            finally:
+                db.close()
+        tab_idx += 1
+\n    st.markdown("<br><br><br><br><br><div style='text-align: center; color: #475569; font-size: 0.85rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
