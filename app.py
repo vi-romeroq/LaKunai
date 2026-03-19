@@ -106,7 +106,7 @@ def get_extracted_text(file_content_bytes, file_name):
     return StandardAnalyzer().extract_text(DummyFile(file_content_bytes, file_name))
 
 
-st.set_page_config(page_title="Lakunai | AI Enterprise GRC", page_icon="🧿", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Lakunai | AI Enterprise GRC", page_icon="🧿", layout="wide", initial_sidebar_state="auto")
 
 # --- ULTRA PREMIUM CSS DESIGN ---
 st.markdown("""
