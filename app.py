@@ -580,6 +580,12 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                     st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
 
+
+            st.markdown("<br><div style='text-align:center;color:#94a3b8;font-size:0.85rem;'>Autenticación Corporativa SSO</div><hr style='border-color:rgba(255,255,255,0.1);margin-top:5px;margin-bottom:15px;'>", unsafe_allow_html=True)
+            if st.button("🔵 Continuar con Microsoft 365", use_container_width=True):
+                st.info("🔐 Función reservada. Requiere credenciales de Azure Entra ID.")
+            if st.button("🔴 Continuar con Google Workspace", use_container_width=True):
+                st.info("🔐 Función reservada. Requiere credenciales de Google Cloud Console.")
         st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes &nbsp;|&nbsp; <a href='mailto:contacto@lakunai.cl' style='color:#38bdf8;text-decoration:none;'>contacto@lakunai.cl</a></div>", unsafe_allow_html=True)
         st.stop()
 
