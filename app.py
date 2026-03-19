@@ -369,7 +369,8 @@ def main():
             finally:
                 db.close()
         tab_idx += 1
-\n    st.markdown("<br><br><br><br><br><div style='text-align: center; color: #475569; font-size: 0.85rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
+
+    st.markdown("<br><br><br><br><br><div style='text-align: center; color: #475569; font-size: 0.85rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
         st.stop()
     else:
         username = st.session_state['auth_username']
@@ -698,7 +699,8 @@ curl -X POST https://api.lakunai.io/v1/audit/live \\
             finally:
                 db.close()
         tab_idx += 1
-\n    st.markdown("<br><br><br><br><br><div style='text-align: center; color: #475569; font-size: 0.85rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
+
+    st.markdown("<br><br><br><br><br><div style='text-align: center; color: #475569; font-size: 0.85rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:20px;'>© 2026 LaKunAI Soluciones Inteligentes. Tu Blindaje Completo para la adopción segura de IA.</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
