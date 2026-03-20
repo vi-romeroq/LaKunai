@@ -119,8 +119,12 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 load_dotenv()
 DB_URL = os.getenv("DATABASE_URL", "sqlite:///normatix_fallback.db")
-connect_args = {"check_same_thread": False} if "sqlite" in DB_URL else {}
-engine = create_engine(DB_URL, connect_args=connect_args)
+if "sqlite" in DB_URL:
+    connect_args = {"check_same_thread": False}
+    engine = create_engine(DB_URL, connect_args=connect_args)
+else:
+    # Supabase Transaction Pooler (port 6543) requires prepared statements disabled
+    engine = create_engine(DB_URL, pool_pre_ping=True, execution_options={"prepare_threshold": None})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -152,6 +156,13 @@ class RagDocument(Base):
     username = Column(String, index=True)
     doc_name = Column(String)
     content = Column(Text)
+    created_at = Column(DateTime)
+
+class GuestSession(Base):
+    """Tracks anonymous guest audits by IP hash to prevent refresh-bypass abuse."""
+    __tablename__ = "guest_sessions"
+    ip_hash = Column(String, primary_key=True)
+    used = Column(Integer, default=0)
     created_at = Column(DateTime)
 
 Base.metadata.create_all(bind=engine)
@@ -206,6 +217,46 @@ def get_audits(username):
         db = SessionLocal()
         audits = db.query(Audit).filter(Audit.username == username).order_by(Audit.id.desc()).all()
         return [(a.doc_name, a.risk_tier, a.audit_date.strftime("%Y-%m-%d %H:%M:%S")) for a in audits]
+    finally:
+        db.close()
+
+def get_guest_ip_hash() -> str:
+    """Returns a SHA-256 hash of the visitor's IP + User-Agent for anonymous fingerprinting."""
+    try:
+        headers = st.context.headers
+        ip = headers.get("X-Forwarded-For", headers.get("X-Real-Ip", "unknown"))
+        ua = headers.get("User-Agent", "")
+        raw = f"{ip}:{ua}"
+        return hashlib.sha256(raw.encode()).hexdigest()
+    except Exception:
+        return "unknown"
+
+def check_and_mark_guest_ip(ip_hash: str) -> bool:
+    """Returns True if this guest IP has NOT used their free audit yet. Marks it as used."""
+    if ip_hash == "unknown":
+        return True  # Can't fingerprint — allow but don't block
+    db = SessionLocal()
+    try:
+        record = db.query(GuestSession).filter(GuestSession.ip_hash == ip_hash).first()
+        if record and record.used >= 1:
+            return False  # Already used
+        if not record:
+            db.add(GuestSession(ip_hash=ip_hash, used=1, created_at=datetime.datetime.now()))
+        else:
+            record.used += 1
+        db.commit()
+        return True
+    finally:
+        db.close()
+
+def has_guest_ip_used(ip_hash: str) -> bool:
+    """Check (without marking) whether a guest IP has already used their free audit."""
+    if ip_hash == "unknown":
+        return False
+    db = SessionLocal()
+    try:
+        record = db.query(GuestSession).filter(GuestSession.ip_hash == ip_hash).first()
+        return bool(record and record.used >= 1)
     finally:
         db.close()
 
@@ -580,11 +631,20 @@ def main():
             with auth_tabs[2]:
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.caption("Prueba la IA 1 vez gratis, sin dejar datos.")
-                if st.button("Auditar Gratis (1 Crédito)", use_container_width=True):
-                    st.session_state['auth_username'] = "GUEST_SESSION"
-                    st.session_state['auth_role'] = "INVITADO"
-                    st.session_state['auth_plan'] = "GUEST"
-                    st.rerun()
+                guest_ip_hash = get_guest_ip_hash()
+                already_used = has_guest_ip_used(guest_ip_hash)
+                if already_used:
+                    st.warning("⚠️ **Ya usaste tu auditoría gratuita** desde este dispositivo. Crea una cuenta gratuita para obtener 3 auditorías completas.")
+                else:
+                    if st.button("Auditar Gratis (1 Crédito)", use_container_width=True):
+                        allowed = check_and_mark_guest_ip(guest_ip_hash)
+                        if allowed:
+                            st.session_state['auth_username'] = "GUEST_SESSION"
+                            st.session_state['auth_role'] = "INVITADO"
+                            st.session_state['auth_plan'] = "GUEST"
+                            st.rerun()
+                        else:
+                            st.error("⚠️ Este acceso gratuito ya fue utilizado. Por favor regístrate para continuar.")
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
                 if st.button("▶️ Ver Demo Interactiva", use_container_width=True):
@@ -738,7 +798,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
             try:
                 total_users = db.query(User).count()
                 pro_users = db.query(User).filter(User.plan == "PRO").count()
-                mrr = pro_users * 10000
+                mrr = pro_users * 29000
                 all_usage = db.query(Usage).all()
                 total_audits = sum([u.count for u in all_usage])
                 m1, m2, m3, m4 = st.columns(4)
@@ -846,7 +906,9 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                         st.markdown(f'<div class="risk-badge {badge_class}">{loc["risk_t"]} {risk_tier}</div>', unsafe_allow_html=True)
 
                         if plan == "GUEST":
+                            # Sync session_state and DB-backed counter
                             st.session_state['guest_uses'] = st.session_state.get('guest_uses', 0) + 1
+                            # The IP was already marked in DB when the guest button was clicked
                         else:
                             save_audit(username, ", ".join(doc_names), risk_tier)
                             increment_usage(username)
@@ -891,7 +953,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                             st.info("💎 **Función PRO:** El reporte en PDF institucional (marca blanca) es exclusivo de suscripciones activas. Como usuario Free, tienes disponible la exportación en texto (.txt) arriba.")
 
                         # --- GOD TIER: REMEDIATION ENGINE ---
-                        if risk_tier in ["HIGH RIESGO", "HIGH", "MEDIUM RIESGO", "MEDIUM", "ALTO RIESGO", "MEDIO RIESGO"]:
+                        if risk_tier in ["UNACCEPTABLE", "HIGH"]:
                             st.markdown("<br>", unsafe_allow_html=True)
                             st.markdown("""<div style='background:rgba(129,140,248,0.1);border:1px solid rgba(129,140,248,0.3);border-radius:12px;padding:20px;'>
                             <h4 style='color:#818cf8;margin-top:0;'>✨ Remediation Engine (Redacción Correctiva)</h4>

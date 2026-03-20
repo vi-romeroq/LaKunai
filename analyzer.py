@@ -86,6 +86,36 @@ Provide a professional, direct, and exact legal or technical response. If they a
         except Exception as e:
             yield f"⚠️ Fallo de asimilación neuronal. Intenta de nuevo. (`{str(e)[:40]}`)"
 
+    def remediate_clauses_stream(self, original_doc: str, audit_report: str, jurisdiction: str):
+        """Generates corrective, legally-safe clause rewrites based on the audit findings."""
+        prompt = PromptTemplate(
+            input_variables=["original_doc", "audit_report", "jurisdiction"],
+            template="""You are Normatix, an elite GRC Legal Engineer. An audit has identified HIGH or UNACCEPTABLE risk in a document.
+
+AUDIT FINDINGS:
+{audit_report}
+
+ORIGINAL DOCUMENT EXCERPT:
+{original_doc}
+
+JURISDICTION: {jurisdiction}
+
+CRITICAL TASK: For EACH non-compliant clause or section identified in the audit findings:
+1. Quote the original problematic text (marked as '❌ ORIGINAL:')
+2. Write a corrected, legally-safe replacement (marked as '✅ CORRECCIÓN PROPUESTA:')
+3. Cite the exact legal article that is now satisfied.
+
+Use strict Markdown formatting. Be precise and actionable. These clauses must be safe to use in a real corporate contract.
+"""
+        )
+        chain = prompt | self.llm_large
+        snippet = original_doc[:5000]
+        try:
+            for chunk in chain.stream({"original_doc": snippet, "audit_report": audit_report[:4000], "jurisdiction": jurisdiction}):
+                if chunk.content: yield chunk.content
+        except Exception as e:
+            yield f"⚠️ Error generando cláusulas corregidas. (`{str(e)[:60]}`)"
+
     def classify_risk_tier(self, text, jurisdiction="EU AI Act"):
         prompt = PromptTemplate(
             input_variables=["text", "jurisdiction"],
