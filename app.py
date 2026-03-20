@@ -165,6 +165,27 @@ class GuestSession(Base):
     used = Column(Integer, default=0)
     created_at = Column(DateTime)
 
+class ClauseLibrary(Base):
+    """Stores corporate-approved safe clauses to be injected into the Remediation Engine."""
+    __tablename__ = "clause_library"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String, index=True)
+    title = Column(String)
+    safe_text = Column(Text)
+    created_at = Column(DateTime)
+
+class ShadowAIRequest(Base):
+    """Tracks employee requests to use external AI tools and their automated compliance status."""
+    __tablename__ = "shadow_ai_requests"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String, index=True)
+    tool_name = Column(String)
+    use_case = Column(Text)
+    data_type = Column(String)
+    status = Column(String)  # APROBADO, DENEGADO, REQUIERE REVISIÓN
+    llm_evaluation = Column(Text)
+    created_at = Column(DateTime)
+
 Base.metadata.create_all(bind=engine)
 
 @st.cache_resource
@@ -296,6 +317,78 @@ def get_rag_documents(username):
         db = SessionLocal()
         docs = db.query(RagDocument).filter(RagDocument.username == username).order_by(RagDocument.id.desc()).limit(10).all()
         return [(d.doc_name, d.content) for d in docs]
+    finally:
+        db.close()
+
+def save_clause(username, title, safe_text):
+    """Save a corporate safe clause manually authored or selected by the legal team."""
+    try:
+        db = SessionLocal()
+        db.add(ClauseLibrary(username=username, title=title, safe_text=safe_text, created_at=datetime.datetime.now()))
+        db.commit()
+    finally:
+        db.close()
+
+def get_clauses(username):
+    """Retrieve all saved corporate clauses for this user's organization."""
+    try:
+        db = SessionLocal()
+        clauses = db.query(ClauseLibrary).filter(ClauseLibrary.username == username).order_by(ClauseLibrary.id.desc()).all()
+        return [{"id": c.id, "title": c.title, "safe_text": c.safe_text} for c in clauses]
+    finally:
+        db.close()
+
+def delete_clause(clause_id, username):
+    """Delete a library clause."""
+    try:
+        db = SessionLocal()
+        clause = db.query(ClauseLibrary).filter(ClauseLibrary.id == clause_id, ClauseLibrary.username == username).first()
+        if clause:
+            db.delete(clause)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+def save_shadow_request(username, tool_name, use_case, data_type, status, llm_evaluation):
+    """Save an employee's request to use a third-party AI tool."""
+    try:
+        db = SessionLocal()
+        db.add(ShadowAIRequest(
+            username=username, tool_name=tool_name, use_case=use_case,
+            data_type=data_type, status=status, llm_evaluation=llm_evaluation,
+            created_at=datetime.datetime.now()
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+def get_shadow_requests(username=None):
+    """Retrieve all Shadow AI requests (or just for one user)."""
+    try:
+        db = SessionLocal()
+        query = db.query(ShadowAIRequest)
+        if username:
+            query = query.filter(ShadowAIRequest.username == username)
+        reqs = query.order_by(ShadowAIRequest.id.desc()).all()
+        return [{"id": r.id, "username": r.username, "tool_name": r.tool_name, 
+                 "use_case": r.use_case, "data_type": r.data_type, "status": r.status, 
+                 "llm_evaluation": r.llm_evaluation, "created_at": r.created_at.strftime("%Y-%m-%d %H:%M")} 
+                for r in reqs]
+    finally:
+        db.close()
+
+def update_shadow_status(req_id, new_status):
+    """Admin or automated system updates the status of a request."""
+    try:
+        db = SessionLocal()
+        req = db.query(ShadowAIRequest).filter(ShadowAIRequest.id == req_id).first()
+        if req:
+            req.status = new_status
+            db.commit()
+            return True
+        return False
     finally:
         db.close()
 
@@ -452,7 +545,7 @@ T = {
         "inv_txt": "🌟 **Institutional Memory Active:** RAG retrospective search enabled for your company.",
         "lang": "🌐 UI Language:", "domain": "📂 Industry:", "jur": "⚖️ Regulatory Framework:",
         "t1": "🛡️ Document Audit", "t2": "📊 AI Dashboard", "t3": "🛠️ Remediation Desk", "t4": "📄 Model Cards",
-        "t5": "🎯 Red-Teaming", "t6": "🔗 DevOps API Hub", "t7": "📖 About Normatix", "t8": "👑 Super Admin Panel",
+        "t5": "🎯 Red-Teaming", "t6": "🕵️ Gobernanza Shadow AI", "t7": "📖 About Normatix", "t8": "👑 Super Admin Panel",
         "t1_h": "### Ingest Policies & Contracts", "up_l": "📂 Upload Documents (Anti-PII Active)", "run_a": "🚀 Execute GRC Risk Analysis",
         "spin": "Processing securely via LLM...", "err_ext": "No text.", "risk_t": "Automated Risk Classification:",
         "rep_t": "### 📊 Official Strategic Report", "down_r": "📥 Download Report (TXT)",
@@ -465,7 +558,7 @@ T = {
         "t4_btn": "🛠️ Compile ISO Model Card", "t4_up": "📂 Upload Technical Architecture",
         "t5_h": "### Ethical Hacker / Adversarial Lab 🎯", "t5_d": "Enter a real endpoint. NORMATIX will execute HTTP requests injecting test prompts to evaluate your system's robustness.",
         "t5_url": "AI Model HTTP Endpoint", "t5_atk": "⚔️ Launch Adversarial Audit",
-        "t6_h": "### Continuous Integration Hub (CI/CD) 🔗", "t6_d": "Sync Normatix directly with your deployment pipelines.",
+        "t6_h": "### Control de Shadow AI (Third-Party Risk)", "t6_d": "Evalúa y autoriza el uso de IAs de terceros en la empresa.",
     }
 }
 
@@ -1016,7 +1109,8 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                             if st.button("Generar Cláusulas Correctivas Seguras"):
                                 st.info("Generando redacción corporativa legalmente segura mediante LLM 70B...")
                                 try:
-                                    corrective_generator = analyzer.remediate_clauses_stream(combined_text, result_text, jurisdiction)
+                                    saved_clauses = get_clauses(username)
+                                    corrective_generator = analyzer.remediate_clauses_stream(combined_text, result_text, jurisdiction, saved_clauses)
                                     remediation_text = st.write_stream(corrective_generator)
                                     st.download_button("📥 Descargar Cláusulas Corregidas", data=remediation_text, file_name=f"Normatix_Remediation_{datetime.datetime.now().strftime('%Y%m%d')}.txt")
                                 except Exception as e:
@@ -1080,6 +1174,38 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                 <span style='color:#e2e8f0;font-size:0.9rem;'>Normatix tiene indexado el contexto técnico de <b>{rag_docs_count} documento(s)</b> de tu empresa. El asistente RAG (Retrieval-Augmented Generation) buscará mitigaciones precisas dentro de esa jurisprudencia interna real.</span>
             </div>
             """, unsafe_allow_html=True)
+            
+            # --- CLAUSE LIBRARY ---
+            with st.expander("📚 Mi Biblioteca de Cláusulas (Corporativo)", expanded=False):
+                st.write("Guarda aquí los textos pre-aprobados por tu Fiscalía. El Motor de Remediación los utilizará para corregir automáticamente los documentos riesgosos.")
+                
+                with st.form("add_clause_form", clear_on_submit=True):
+                    c_title = st.text_input("Título descriptivo (ej. 'Seguridad de Datos AI')")
+                    c_text = st.text_area("Texto Legal Seguro (Aprobado)", height=100)
+                    if st.form_submit_button("Guardar en Biblioteca"):
+                        if c_title and c_text:
+                            save_clause(username, c_title, c_text)
+                            st.success(f"Cláusula '{c_title}' guardada correctamente.")
+                            st.rerun()
+                        else:
+                            st.error("Completa ambos campos.")
+                            
+                saved_clauses = get_clauses(username)
+                if saved_clauses:
+                    st.markdown("#### Cláusulas Activas")
+                    for c in saved_clauses:
+                        with st.container(border=True):
+                            c1, c2 = st.columns([0.85, 0.15])
+                            with c1:
+                                st.markdown(f"**{c['title']}**")
+                                st.caption(c['safe_text'][:150] + "...")
+                            with c2:
+                                if st.button("🗑️", key=f"del_clause_{c['id']}", help="Eliminar cláusula"):
+                                    delete_clause(c['id'], username)
+                                    st.rerun()
+                else:
+                    st.info("Aún no tienes cláusulas guardadas. Agrega tu primera cláusula corporativa.")
+            st.markdown("<br>", unsafe_allow_html=True)
             
             if 'last_audit' not in st.session_state:
                 st.info(loc["t3_n"])
@@ -1152,28 +1278,85 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                     st.error("⛔ URL bloqueada por seguridad: no se permiten IPs privadas o locales.")
                     ssrf_safe = False
                 if ssrf_safe:
-                    with st.spinner("Inyectando Payloads y Evaluando (HTTP Real / Simulado)..."):
+                    with st.spinner("Inyectando Payloads OWASP y Evaluando Resiliencia (HTTP Real / Simulado)..."):
                         analyzer = StandardAnalyzer()
-                        st.write_stream(analyzer.perform_red_teaming_stream(model_endpoint))
+                        st.write_stream(analyzer.run_owasp_audit_stream(model_endpoint))
                         increment_usage(username)
         tab_idx += 1
 
-    # --- TAB: CI/CD HUB ---
+    # --- TAB: SHADOW AI GOVERNANCE ---
     if loc["t6"] in allowed_tab_names:
         with tabs[tab_idx]:
             st.markdown(loc["t6_h"])
             st.write(loc["t6_d"])
-            st.markdown("""
-            <div style='text-align:center;padding:60px 40px;border:1px dashed rgba(56,189,248,0.2);border-radius:20px;background:rgba(15,23,42,0.5);margin-top:20px;'>
-                <div style='font-size:3rem;margin-bottom:20px;'>🔗</div>
-                <h3 style='color:#f8fafc;font-weight:800;margin-bottom:10px;'>Integración CI/CD con GitHub Actions</h3>
-                <p style='color:#94a3b8;max-width:500px;margin:0 auto 20px;line-height:1.6;'>Normatix se integrará directamente en tus pipelines de despliegue para auditar modelos de IA automáticamente antes de cada <code style='color:#38bdf8;'>merge</code> a producción.</p>
-                <div style='display:inline-block;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);border-radius:30px;padding:8px 24px;margin-bottom:20px;'>
-                    <span style='color:#38bdf8;font-weight:700;font-size:0.85rem;letter-spacing:2px;'>EN DESARROLLO — ENTERPRISE PLAN</span>
-                </div>
-                <p style='color:#475569;font-size:0.85rem;'>¿Necesitas esta integración ahora? <a href='mailto:contacto@normatix.cl' style='color:#38bdf8;'>contacto@normatix.cl</a></p>
-            </div>
-            """, unsafe_allow_html=True)
+            
+            st.markdown("### 📝 Nueva Solicitud de Integración")
+            with st.form("shadow_ai_form", clear_on_submit=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    sa_tool = st.text_input("Herramienta IA (ej. ChatGPT, GitHub Copilot, Midjourney)")
+                with col2:
+                    sa_data = st.selectbox("Tipo de Datos a Procesar", [
+                        "Públicos / Sin restricción",
+                        "Datos Corporativos Internos",
+                        "Datos Personales Básicos (Nombres, Emails)",
+                        "Datos Personales Sensibles (Salud, Finanzas)"
+                    ])
+                sa_use_case = st.text_area("Descripción de Caso de Uso", placeholder="¿Para qué procesos se utilizará esta IA?")
+                
+                if st.form_submit_button("Evaluar e Ingresar Solicitud", use_container_width=True):
+                    if sa_tool and sa_use_case:
+                        with st.spinner("🤖 El Oficial de Compliance Automatizado está evaluando el riesgo..."):
+                            analyzer = StandardAnalyzer()
+                            generator = analyzer.evaluate_shadow_ai_stream(sa_tool, sa_use_case, sa_data)
+                            verdict_output = ""
+                            for chunk in generator:
+                                verdict_output += chunk
+                            
+                            status_val = "REQUIERE REVISIÓN"
+                            if "DICTAMEN: APROBADO" in verdict_output:
+                                status_val = "APROBADO"
+                            elif "DICTAMEN: DENEGADO" in verdict_output:
+                                status_val = "DENEGADO"
+                            
+                            save_shadow_request(username, sa_tool, sa_use_case, sa_data, status_val, verdict_output)
+                            st.success("✅ Solicitud procesada y guardada en el registro corporativo.")
+                            st.rerun()
+                    else:
+                        st.error("Por favor completa la herramienta y el caso de uso.")
+            
+            st.markdown("---")
+            st.markdown("### 📋 Registro Histórico de Shadow AI")
+            
+            req_list = get_shadow_requests(username=None if role == "ADMINISTRADOR" else username)
+            if not req_list:
+                st.info("No hay solicitudes registradas.")
+            else:
+                for r in req_list:
+                    with st.expander(f"[{r['status']}] {r['tool_name']} ({r['created_at']} - {r['username']})", expanded=False):
+                        st.markdown(f"**Caso de Uso:** {r['use_case']}")
+                        st.markdown(f"**Tipo de Datos:** {r['data_type']}")
+                        st.markdown("#### Informe Automatizado GRC")
+                        st.markdown(r['llm_evaluation'])
+                        
+                        if role == "ADMINISTRADOR":
+                            st.markdown("---")
+                            st.markdown("**Acciones de Oficial Compliance**")
+                            colA, colB, colC = st.columns(3)
+                            if colA.button("✅ Aprobar Manualmente", key=f"apr_{r['id']}"):
+                                update_shadow_status(r['id'], "APROBADO")
+                                st.rerun()
+                            if colB.button("🚫 Denegar", key=f"den_{r['id']}"):
+                                update_shadow_status(r['id'], "DENEGADO")
+                                st.rerun()
+                            if colC.button("🗑️ Eliminar Registro", key=f"del_{r['id']}"):
+                                db = SessionLocal()
+                                shadow_req = db.query(ShadowAIRequest).filter(ShadowAIRequest.id == r['id']).first()
+                                if shadow_req:
+                                    db.delete(shadow_req)
+                                    db.commit()
+                                db.close()
+                                st.rerun()
         tab_idx += 1
 
     st.markdown("<br><br><br><div style='text-align:center;color:#475569;font-size:0.85rem;border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;'>© 2026 Normatix Soluciones Inteligentes &nbsp;|&nbsp; <a href='mailto:contacto@normatix.cl' style='color:#38bdf8;text-decoration:none;'>contacto@normatix.cl</a></div>", unsafe_allow_html=True)
