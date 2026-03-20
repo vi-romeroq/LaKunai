@@ -221,44 +221,64 @@ def get_audits(username):
         db.close()
 
 def get_guest_ip_hash() -> str:
-    """Returns a SHA-256 hash of the visitor's IP + User-Agent for anonymous fingerprinting."""
+    """
+    Returns a stable SHA-256 fingerprint for anonymous guest tracking.
+    - On Streamlit Cloud: uses IP + User-Agent (strongest fingerprint)
+    - Locally (no reverse proxy): uses User-Agent only (still stable per browser)
+    - On total failure: uses a session-persistent UUID (blocks within same tab/session)
+    NEVER returns 'unknown' — always returns a trackable hash.
+    """
     try:
         headers = st.context.headers
-        ip = headers.get("X-Forwarded-For", headers.get("X-Real-Ip", "unknown"))
-        ua = headers.get("User-Agent", "")
-        raw = f"{ip}:{ua}"
+        # Try to get real IP from reverse proxy headers
+        ip = (
+            headers.get("X-Forwarded-For", "").split(",")[0].strip() or
+            headers.get("X-Real-Ip", "").strip() or
+            ""  # Empty string — still use UA as fingerprint below
+        )
+        ua = headers.get("User-Agent", "generic-browser")
+        raw = f"{ip}|{ua}"
         return hashlib.sha256(raw.encode()).hexdigest()
     except Exception:
-        return "unknown"
+        # st.context.headers unavailable — use a session UUID as fallback
+        # This at least blocks within the same browser tab/session
+        import uuid
+        if "_guest_fingerprint" not in st.session_state:
+            st.session_state["_guest_fingerprint"] = str(uuid.uuid4())
+        return "sess_" + hashlib.sha256(
+            st.session_state["_guest_fingerprint"].encode()
+        ).hexdigest()
 
 def check_and_mark_guest_ip(ip_hash: str) -> bool:
-    """Returns True if this guest IP has NOT used their free audit yet. Marks it as used."""
-    if ip_hash == "unknown":
-        return True  # Can't fingerprint — allow but don't block
+    """Returns True if this fingerprint has NOT used their free audit yet, and marks it used."""
     db = SessionLocal()
     try:
         record = db.query(GuestSession).filter(GuestSession.ip_hash == ip_hash).first()
         if record and record.used >= 1:
-            return False  # Already used
+            return False  # Already used — block
         if not record:
             db.add(GuestSession(ip_hash=ip_hash, used=1, created_at=datetime.datetime.now()))
         else:
             record.used += 1
         db.commit()
         return True
+    except Exception:
+        db.rollback()
+        return True  # On unexpected DB error, allow gracefully (rare edge case)
     finally:
         db.close()
 
 def has_guest_ip_used(ip_hash: str) -> bool:
-    """Check (without marking) whether a guest IP has already used their free audit."""
-    if ip_hash == "unknown":
-        return False
+    """Check (without marking) whether this fingerprint already used their free audit."""
     db = SessionLocal()
     try:
         record = db.query(GuestSession).filter(GuestSession.ip_hash == ip_hash).first()
         return bool(record and record.used >= 1)
+    except Exception:
+        return False  # On DB error, allow showing the button (fail open for UX)
     finally:
         db.close()
+
 
 def save_rag_document(username, doc_name, content):
     """Persist RAG context to DB -- survives cloud restarts unlike local disk."""
