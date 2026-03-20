@@ -1,0 +1,31 @@
+# Normatix Enterprise - Git Ignore
+
+# Ambientes Virtuales / Caché
+venv/
+env/
+__pycache__/
+.pytest_cache/
+.streamlit/
+
+# Garantizar que el logo se suba a GitHub
+!logo.png
+
+# Credenciales y Secretos (CRÍTICO)
+.env
+
+# Archivos de Bases de Datos SQLite (Locales)
+*.db
+*.sqlite
+usage.db
+
+# Memoria RAG Local (Para no subir PDFs confidenciales)
+data_rag/
+
+# Documentos temporales (Archivos de prueba que subió el usuario)
+*.pdf
+*.txt
+*.docx
+
+# Reportes Locales
+Lakunai_Audit.txt
+MC_*.md

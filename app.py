@@ -167,8 +167,9 @@ class GuestSession(Base):
 
 Base.metadata.create_all(bind=engine)
 
-def elevate_admin():
-    """Auto-elevate the owner account to ADMINISTRADOR on every startup."""
+@st.cache_resource
+def _run_startup_tasks():
+    """Run once-per-deployment tasks: admin elevation. Cached so it never re-runs on reruns."""
     admin_user = os.getenv("ADMIN_USERNAME", "")
     if not admin_user:
         return
@@ -181,7 +182,7 @@ def elevate_admin():
     finally:
         db.close()
 
-elevate_admin()
+_run_startup_tasks()
 
 def get_usage(username):
     try:
@@ -344,16 +345,19 @@ def get_extracted_text(file_content_bytes, file_name):
     """Extract text directly -- avoids initializing the Groq LLM client inside a cached function."""
     import io
     name_lower = file_name.lower()
-    if name_lower.endswith(".pdf"):
-        import fitz
-        doc = fitz.open(stream=file_content_bytes, filetype="pdf")
-        return "\n".join(page.get_text() for page in doc)
-    elif name_lower.endswith(".docx"):
-        import docx as _docx
-        doc = _docx.Document(io.BytesIO(file_content_bytes))
-        return "\n".join(p.text for p in doc.paragraphs)
-    elif name_lower.endswith(".txt"):
-        return file_content_bytes.decode("utf-8", errors="replace")
+    try:
+        if name_lower.endswith(".pdf"):
+            import fitz
+            doc = fitz.open(stream=file_content_bytes, filetype="pdf")
+            return "\n".join(page.get_text() for page in doc)
+        elif name_lower.endswith(".docx"):
+            import docx as _docx
+            doc = _docx.Document(io.BytesIO(file_content_bytes))
+            return "\n".join(p.text for p in doc.paragraphs)
+        elif name_lower.endswith(".txt"):
+            return file_content_bytes.decode("utf-8", errors="replace")
+    except Exception as e:
+        return f"[ERROR: El archivo '{file_name}' no se pudo leer. Puede estar corrupto o protegido con contraseña. Detalles: {str(e)}]"
     return ""
 
 
@@ -712,7 +716,10 @@ El documento analizado corresponde a una política interna de uso de IA para eva
 
     # Demo mode banner
     if st.session_state.get('demo_mode'):
-        st.info("🎬 **Modo Demo Activo** — Estás viendo datos de ejemplo. [Crea una cuenta gratuita](#) para auditar tus propios documentos.")
+        st.info("🎬 **Modo Demo Activo** — Estás viendo datos de ejemplo.")
+        if st.button("Crear cuenta gratuita para auditar mis documentos", type="primary"):
+            st.session_state.clear()
+            st.rerun()
 
     if os.path.exists("logo.png"):
         st.sidebar.image("logo.png", use_container_width=True)
@@ -724,7 +731,7 @@ El documento analizado corresponde a una política interna de uso de IA para eva
 
     st.sidebar.markdown(f"### 👤 Mi Perfil")
     st.sidebar.write(f"**Usuario:** `{username}`")
-    st.sidebar.write(f"**Plan:** `{'👑 PRO Ilimitado' if plan == 'PRO' else 'Suscripción Gratuita'}`")
+    st.sidebar.write(f"**Plan:** `{'👑 PRO Ilimitado' if plan == 'PRO' else 'Plan Exploración' if plan == 'FREE' else 'Invitado'}`")
     st.sidebar.success(f"🔒 Nivel: **{role}**")
     st.sidebar.markdown("---")
 
@@ -785,28 +792,54 @@ El documento analizado corresponde a una política interna de uso de IA para eva
     # --- TAB: SOBRE NORMATIX ---
     if t7_name in allowed_tab_names:
         with tabs[tab_idx]:
-            st.markdown("""
-            <div style="text-align:center;padding:10px 0 40px 0;">
-                <h1 style="color:#f8fafc;font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;line-height:1.2;margin-bottom:15px;font-family:'Plus Jakarta Sans',sans-serif;">¿ESTÁ TU EMPRESA REALMENTE PREPARADA<br><span style="color:#38bdf8;">PARA ADOPTAR LA INTELIGENCIA ARTIFICIAL?</span></h1>
-                <h3 style="color:#94a3b8;font-weight:400;font-size:1.2rem;">Normatix audita tu infraestructura proactivamente para identificar y mitigar riesgos antes de un despliegue de IA.</h3>
-            </div>
-            """, unsafe_allow_html=True)
-            ca, cb, cc = st.columns(3)
-            with ca:
-                st.markdown("""<div style='background:linear-gradient(180deg,rgba(15,23,42,0.9),rgba(2,6,23,0.9));padding:30px;border-radius:20px;border-top:4px solid #38bdf8;height:100%;box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
-                <div style='font-size:2.5rem;margin-bottom:15px;'>🔍</div>
-                <h4 style='color:#f8fafc;font-size:1.1rem;line-height:1.4;font-weight:800;'>DETECTA PELIGROS OCULTOS</h4>
-                <p style='color:#cbd5e1;font-size:0.95rem;line-height:1.6;'>Auditoría algorítmica especializada. Identifica patrones de riesgo que escapan a revisiones manuales, minimizando tu exposición legal corporativa.<br><br><i>Ejemplo: Detecta sesgos en documentos de RR.HH que podrían generar controversias reputacionales.</i></p></div>""", unsafe_allow_html=True)
-            with cb:
-                st.markdown("""<div style='background:linear-gradient(180deg,rgba(15,23,42,0.9),rgba(2,6,23,0.9));padding:30px;border-radius:20px;border-top:4px solid #818cf8;height:100%;box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
-                <div style='font-size:2.5rem;margin-bottom:15px;'>🛡️</div>
-                <h4 style='color:#f8fafc;font-size:1.1rem;line-height:1.4;font-weight:800;'>CENSURA DATOS AUTOMÁTICAMENTE</h4>
-                <p style='color:#cbd5e1;font-size:0.95rem;line-height:1.6;'>Antes de procesar con IA, identificamos y redactamos RUTs, Tarjetas de Crédito y correos electrónicos. Tu empresa cumple con la Ley 19.628 y el RGPD europeo.</p></div>""", unsafe_allow_html=True)
-            with cc:
-                st.markdown("""<div style='background:linear-gradient(180deg,rgba(15,23,42,0.9),rgba(2,6,23,0.9));padding:30px;border-radius:20px;border-top:4px solid #2dd4bf;height:100%;box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
-                <div style='font-size:2.5rem;margin-bottom:15px;'>⚖️</div>
-                <h4 style='color:#f8fafc;font-size:1.1rem;line-height:1.4;font-weight:800;'>TE GUÍA EN LA SOLUCIÓN</h4>
-                <p style='color:#cbd5e1;font-size:0.95rem;line-height:1.6;'>Te entregamos propuestas de redacción dinámicas para apoyar a tus equipos legales en la mitigación ágil de los riesgos identificados.</p></div>""", unsafe_allow_html=True)
+            if plan == "GUEST":
+                # Show marketing pitch to guests to convert them
+                st.markdown("""
+                <div style="text-align:center;padding:10px 0 40px 0;">
+                    <h1 style="color:#f8fafc;font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;line-height:1.2;margin-bottom:15px;font-family:'Plus Jakarta Sans',sans-serif;">¿ESTÁ TU EMPRESA REALMENTE PREPARADA<br><span style="color:#38bdf8;">PARA ADOPTAR LA INTELIGENCIA ARTIFICIAL?</span></h1>
+                    <h3 style="color:#94a3b8;font-weight:400;font-size:1.2rem;">Normatix audita tu infraestructura proactivamente para identificar y mitigar riesgos antes de un despliegue de IA.</h3>
+                </div>
+                """, unsafe_allow_html=True)
+                ca, cb, cc = st.columns(3)
+                with ca:
+                    st.markdown("""<div style='background:linear-gradient(180deg,rgba(15,23,42,0.9),rgba(2,6,23,0.9));padding:30px;border-radius:20px;border-top:4px solid #38bdf8;height:100%;box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
+                    <div style='font-size:2.5rem;margin-bottom:15px;'>🔍</div>
+                    <h4 style='color:#f8fafc;font-size:1.1rem;line-height:1.4;font-weight:800;'>DETECTA PELIGROS OCULTOS</h4>
+                    <p style='color:#cbd5e1;font-size:0.95rem;line-height:1.6;'>Auditoría algorítmica especializada. Identifica patrones de riesgo que escapan a revisiones manuales, minimizando tu exposición legal corporativa.<br><br><i>Ejemplo: Detecta sesgos en documentos de RR.HH que podrían generar controversias reputacionales.</i></p></div>""", unsafe_allow_html=True)
+                with cb:
+                    st.markdown("""<div style='background:linear-gradient(180deg,rgba(15,23,42,0.9),rgba(2,6,23,0.9));padding:30px;border-radius:20px;border-top:4px solid #818cf8;height:100%;box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
+                    <div style='font-size:2.5rem;margin-bottom:15px;'>🛡️</div>
+                    <h4 style='color:#f8fafc;font-size:1.1rem;line-height:1.4;font-weight:800;'>CENSURA DATOS AUTOMÁTICAMENTE</h4>
+                    <p style='color:#cbd5e1;font-size:0.95rem;line-height:1.6;'>Antes de procesar con IA, identificamos y redactamos RUTs, Tarjetas de Crédito y correos electrónicos. Tu empresa cumple con la Ley 19.628 y el RGPD europeo.</p></div>""", unsafe_allow_html=True)
+                with cc:
+                    st.markdown("""<div style='background:linear-gradient(180deg,rgba(15,23,42,0.9),rgba(2,6,23,0.9));padding:30px;border-radius:20px;border-top:4px solid #2dd4bf;height:100%;box-shadow:0 10px 30px rgba(0,0,0,0.5);'>
+                    <div style='font-size:2.5rem;margin-bottom:15px;'>⚖️</div>
+                    <h4 style='color:#f8fafc;font-size:1.1rem;line-height:1.4;font-weight:800;'>TE GUÍA EN LA SOLUCIÓN</h4>
+                    <p style='color:#cbd5e1;font-size:0.95rem;line-height:1.6;'>Te entregamos propuestas de redacción dinámicas para apoyar a tus equipos legales en la mitigación ágil de los riesgos identificados.</p></div>""", unsafe_allow_html=True)
+            else:
+                # Useful dashboard/guides for logged-in users
+                st.markdown("### 📚 Centro de Ayuda & Plataforma")
+                st.write("Bienvenido a la suite de cumplimiento Normatix. Aquí tienes acceso rápido a las funciones clave de tu plan.")
+                st.markdown("---")
+                
+                ha, hb = st.columns(2)
+                with ha:
+                    st.markdown("#### 🚀 Guía de Inicio Rápido")
+                    st.markdown("""
+                    1. **Sube tus políticas:** Ve a la pestaña de Auditoría y carga tus PDFs o DOCX empresariales.
+                    2. **Analiza el riesgo:** Selecciona tu jurisdicción y ejecuta el análisis GRC.
+                    3. **Genera el PDF:** Descarga el reporte oficial automatizado (requiere Plan PRO).
+                    4. **Mitiga con la memoria RAG:** Usa el Asistente Legal para que redacte sugerencias basándose en tu historial.
+                    """)
+                with hb:
+                    st.markdown("#### 💎 Tu Suscripción")
+                    if plan == "FREE":
+                        st.info("Actualmente estás en el **Plan Exploración** (3 documentos).")
+                        st.markdown("<a href='https://normatix.lemonsqueezy.com/checkout/buy/7f17e6f7-3f4f-4b8f-9892-92249b540952' target='_blank' style='display:inline-block;padding:8px 16px;background:#2563eb;color:white;border-radius:8px;text-decoration:none;font-weight:bold;'>💡 Upgrade a Normatix PRO ($29.000)</a>", unsafe_allow_html=True)
+                        st.caption("Desbloquea reportes ilimitados, PDF branding y herramientas de Red-Teaming.")
+                    else:
+                        st.success("✨ **Suscripción Activa:** Tienes acceso ilimitado a todas las herramientas de la suite corporativa.")
+                        st.write("Contacta a soporte dedicado en: `enterprise@normatix.cl`")
         tab_idx += 1
 
     # --- TAB: SUPER ADMIN ---
@@ -990,6 +1023,15 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                                     st.error(f"Error generando cláusulas: {str(e)}")
                             st.markdown("</div>", unsafe_allow_html=True)
                         st.success(loc["audit_succ"])
+                        
+                        if plan == "GUEST":
+                            st.markdown("---")
+                            st.info("👋 **¿Te sirvió este reporte?**")
+                            st.write("Has utilizado tu única auditoría gratuita como invitado. Crea una cuenta sin costo para auditar **3 documentos completos** y probar el Chat RAG legal.")
+                            if st.button("Registrarse Gratis Ahora"):
+                                st.session_state.clear()
+                                st.rerun()
+
         tab_idx += 1
 
     # --- TAB: DASHBOARD ---
@@ -1052,12 +1094,16 @@ El documento analizado corresponde a una política interna de uso de IA para eva
                     with st.chat_message("user"): st.markdown(prompt)
                     with st.chat_message("assistant"):
                         retrieved_context = ""
-                        from rank_bm25 import BM25Okapi
                         rag_docs = get_rag_documents(username)
                         if rag_docs:
-                            corpus = [d[1] for d in rag_docs]
-                            tokenized_corpus = [doc.split(" ") for doc in corpus]
-                            bm25 = BM25Okapi(tokenized_corpus)
+                            # Cache the BM25 tokenization so it doesn't rebuild inside the chat loop
+                            @st.cache_data(show_spinner=False)
+                            def build_bm25_index(doc_list):
+                                from rank_bm25 import BM25Okapi
+                                texts = [d[1] for d in doc_list]
+                                return BM25Okapi([t.split(" ") for t in texts]), texts
+                            
+                            bm25, corpus = build_bm25_index(rag_docs)
                             top_doc = bm25.get_top_n(prompt.split(" "), corpus, n=1)[0]
                             retrieved_context = f"--- RAG CONTEXT ---\n{top_doc[:3000]}\n\n"
                         full_context = retrieved_context + "--- LATEST AUDIT ---\n" + st.session_state.get('last_audit', '')
