@@ -114,7 +114,7 @@ def generate_pdf_report(username: str, doc_names: str, risk_tier: str, report_te
     return bytes(pdf.output())
 
 # --- Cloud-Ready Database ORM (SQLAlchemy Setup) ---
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 load_dotenv()
@@ -126,6 +126,25 @@ else:
     # Supabase Transaction Pooler (port 6543) requires prepared statements disabled
     engine = create_engine(DB_URL, pool_pre_ping=True, execution_options={"prepare_threshold": None})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# --- Supabase Keepalive: prevents free-tier project from auto-pausing ---
+import threading, time as _time
+
+def _db_keepalive_thread():
+    """Runs in a background daemon thread. Pings DB every 4 days to prevent
+    Supabase from pausing the project due to inactivity (free-tier limit: 7 days)."""
+    INTERVAL = 4 * 24 * 60 * 60  # 4 days in seconds
+    while True:
+        _time.sleep(INTERVAL)
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+        except Exception:
+            pass  # Silently ignore — app will surface real errors normally
+
+_keepalive_thread = threading.Thread(target=_db_keepalive_thread, daemon=True)
+_keepalive_thread.start()
+
 Base = declarative_base()
 
 class User(Base):
